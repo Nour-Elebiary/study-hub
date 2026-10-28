@@ -39,7 +39,7 @@ if (!reset.ok) {
 }
 console.log("migrations + seed applied");
 
-// 3. run each test file; a failing assert makes db execute exit non-zero
+// 3. run each test file; a failing assert makes db query exit non-zero
 const files = readdirSync(join("supabase", "tests", "rls"))
   .filter((f) => f.endsWith(".sql"))
   .sort();
@@ -47,7 +47,7 @@ const files = readdirSync(join("supabase", "tests", "rls"))
 for (const file of files) {
   const res = run([
     "db",
-    "execute",
+    "query",
     "--file",
     join("supabase", "tests", "rls", file),
   ]);

@@ -43,7 +43,7 @@ jobs:
           supabase start
           supabase db reset
           for f in supabase/tests/rls/*.sql; do
-            supabase db execute --file "$f"
+            supabase db query --file "$f"
           done
 
   e2e:
