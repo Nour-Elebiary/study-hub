@@ -82,3 +82,10 @@ is the real control.
 
 When a new milestone wants to add a service or a dependency, add a row here
 with the date and the official source before the code that uses it is merged.
+
+## Dependencies added so far
+
+| Date       | Dependency                                                                                                                      | License | Why it is free for this use                                                                              | Source                                     |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| 2026-10-28 | @tiptap/react, @tiptap/pm, @tiptap/starter-kit, @tiptap/extension-table (+ table-row/cell/header), @tiptap/markdown (M2 editor) | MIT     | Open-source editor libraries that run inside the app; no hosted service, no paid plan, no account needed | https://github.com/ueberdosis/tiptap       |
+| 2026-10-28 | react-markdown (M2 note rendering)                                                                                              | MIT     | Open-source Markdown renderer; escapes raw HTML by default, so stored notes cannot inject scripts        | https://github.com/remarkjs/react-markdown |
