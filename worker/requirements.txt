@@ -1,0 +1,5 @@
+# Study Hub Home Worker — Python dependencies.
+# All are free/open-source; recorded in docs/FREE_TIER.md.
+requests
+faster-whisper
+ocrmypdf
