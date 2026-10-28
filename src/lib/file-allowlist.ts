@@ -38,7 +38,9 @@ export function mimeForFileName(fileName: string): string | null {
 }
 
 /** Which asset row `kind` a mime maps to (the assets.kind column). */
-export function kindForMime(mime: string): "image" | "pdf" | "audio" | "video" | "document" | "other" {
+export function kindForMime(
+  mime: string,
+): "image" | "pdf" | "audio" | "video" | "document" | "other" {
   if (mime.startsWith("image/")) return "image";
   if (mime === "application/pdf") return "pdf";
   if (mime.startsWith("audio/")) return "audio";
@@ -82,7 +84,11 @@ export function sniffMime(bytes: Uint8Array): string | null {
 }
 
 export type UploadCheck =
-  | { ok: true; mime: string; kind: "image" | "pdf" | "audio" | "video" | "document" | "other" }
+  | {
+      ok: true;
+      mime: string;
+      kind: "image" | "pdf" | "audio" | "video" | "document" | "other";
+    }
   | { ok: false; reason: string };
 
 /**
@@ -112,7 +118,8 @@ export function validateUpload(
     }
     return {
       ok: false,
-      reason: "This file does not look like a real " + ext.toUpperCase() + " file.",
+      reason:
+        "This file does not look like a real " + ext.toUpperCase() + " file.",
     };
   }
 
@@ -130,7 +137,8 @@ export function validateUpload(
     }
     return {
       ok: false,
-      reason: "This file does not look like a real " + ext.toUpperCase() + " file.",
+      reason:
+        "This file does not look like a real " + ext.toUpperCase() + " file.",
     };
   }
 
@@ -140,14 +148,16 @@ export function validateUpload(
     }
     return {
       ok: false,
-      reason: "This file does not look like a real " + ext.toUpperCase() + " file.",
+      reason:
+        "This file does not look like a real " + ext.toUpperCase() + " file.",
     };
   }
 
   if (sniffed !== mime) {
     return {
       ok: false,
-      reason: "This file does not look like a real " + ext.toUpperCase() + " file.",
+      reason:
+        "This file does not look like a real " + ext.toUpperCase() + " file.",
     };
   }
 
