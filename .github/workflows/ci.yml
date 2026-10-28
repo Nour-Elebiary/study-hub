@@ -41,10 +41,7 @@ jobs:
       - name: Start local Supabase and run RLS tests
         run: |
           supabase start
-          supabase db reset
-          for f in supabase/tests/rls/*.sql; do
-            supabase db query --file "$f"
-          done
+          npm run test:rls
 
   e2e:
     name: Playwright e2e (local Supabase)
