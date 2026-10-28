@@ -66,8 +66,14 @@ jobs:
             -e 's/^SERVICE_ROLE_KEY=/SUPABASE_SERVICE_ROLE_KEY=/' > .env.local
           grep -v -E '^(NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY)=' \
             .env.example >> .env.local
+      # The offline e2e test needs a production build: the service worker
+      # registers only in production, so E2E_PROD switches Playwright's
+      # webServer to `npm run start`.
+      - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+        env:
+          E2E_PROD: "1"
 
   security:
     name: Secret scan + dependency audit

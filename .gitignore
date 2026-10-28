@@ -46,6 +46,8 @@ next-env.d.ts
 # playwright artifacts
 /playwright-report/
 /test-results/
+# saved browser sessions (storage states) from the e2e setup project
+/playwright/.auth/
 
 # supabase local state
 supabase/.temp/

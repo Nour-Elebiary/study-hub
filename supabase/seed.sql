@@ -152,3 +152,16 @@ insert into public.assets (
   15728640, -- 15 MB: too big for the upload gate
   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 ) on conflict (id) do nothing;
+
+-- M4: a known join code for the e2e tests (and manual local checking).
+-- The code is SEED-2026; the stored hash is HMAC-SHA256 of the normalized
+-- code ("SEED2026") with JOIN_COOKIE_SECRET=replace-me — the placeholder
+-- value from .env.example that CI also uses. Real codes are created through
+-- the leader UI (plaintext shown once, only the hash stored); this row
+-- exists so the test suite can exercise the join flow end to end.
+insert into public.join_codes (course_id, code_hash, label)
+values (
+  'cccccccc-0000-cccc-0000-000000000001',
+  encode(hmac('SEED2026', 'replace-me', 'sha256'), 'hex'),
+  'Sample join code for Course A (used by the e2e tests)'
+) on conflict (code_hash) do nothing;

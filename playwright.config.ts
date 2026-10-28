@@ -5,6 +5,10 @@ import { defineConfig, devices } from "@playwright/test";
  * at 360 px width first (spec section 10).
  * Run locally only when the app + local Supabase (Docker) are set up: `npm run test:e2e`
  * CI runs the same suite against a seeded local Supabase (see .github/workflows/ci.yml).
+ *
+ * With E2E_PROD=1 the suite runs against a production build (`npm run
+ * start`) instead of the dev server — required for the offline test,
+ * because the service worker registers only in production.
  */
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -17,19 +21,32 @@ export default defineConfig({
   },
   projects: [
     {
+      name: "setup",
+      testMatch: /student-setup\.spec\.ts/,
+    },
+    {
       name: "mobile",
       use: {
         ...devices["Pixel 7"],
         viewport: { width: 360, height: 800 },
       },
+      dependencies: ["setup"],
+      // The setup file runs once in its own project; the join spec is
+      // mobile-only because the join rate limit (5/min per IP) is shared
+      // by every context in a run — desktop duplicates would break it.
+      testIgnore: /student-setup\.spec\.ts/,
     },
     {
       name: "desktop",
       use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
+      testIgnore: /student-setup\.spec\.ts|student-join\.spec\.ts/,
     },
   ],
   webServer: {
-    command: "npm run dev -- --turbopack",
+    command: process.env.E2E_PROD
+      ? "npm run start"
+      : "npm run dev -- --turbopack",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 2 * 60 * 1000,
