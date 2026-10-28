@@ -135,3 +135,20 @@ insert into public.node_tags (node_id, tag_id)
 values
   ('eeeeeeee-0000-eeee-0000-000000000003', 'f0f0f0f0-0000-4f0f-8f0f-000000000001')
 on conflict (node_id, tag_id) do nothing;
+
+-- M3: a sample Drive-linked asset on the quiz note. It is over 10 MB, so in
+-- the real app the upload gate would have prompted for a Drive link instead.
+insert into public.assets (
+  id, course_id, node_id, kind, storage, path_or_url, title, mime, size_bytes,
+  created_by
+) values (
+  'a1a1a1a1-0000-4a1a-8a1a-000000000001',
+  'cccccccc-0000-cccc-0000-000000000001',
+  'eeeeeeee-0000-eeee-0000-000000000003',
+  'document', 'drive',
+  'https://drive.google.com/file/d/1EXAMPLE-quiz1-answer-sheet/view',
+  'Quiz 1 answer sheet (on Drive)',
+  'application/pdf',
+  15728640, -- 15 MB: too big for the upload gate
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+) on conflict (id) do nothing;
