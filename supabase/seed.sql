@@ -89,3 +89,49 @@ values
   ('retention_deleted_note_days', '30'),
   ('ai_daily_allowance_per_leader', '0')
 on conflict (key) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- M2 sample content: a small tree with one draft and one published note,
+-- plus tags — used by the RLS tests and as an example for new admins.
+-- ---------------------------------------------------------------------------
+insert into public.nodes (id, course_id, parent_id, area, kind, title, slug, sort_order, status, created_by)
+values
+  ('eeeeeeee-0000-eeee-0000-000000000001', 'cccccccc-0000-cccc-0000-000000000001', null,
+    'official_materials', 'section', 'Week 1', 'week-1', 0, 'published',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  ('eeeeeeee-0000-eeee-0000-000000000002', 'cccccccc-0000-cccc-0000-000000000001',
+    'eeeeeeee-0000-eeee-0000-000000000001',
+    'official_materials', 'note', 'Lecture 1 (draft)', 'lecture-1', 0, 'draft',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  ('eeeeeeee-0000-eeee-0000-000000000003', 'cccccccc-0000-cccc-0000-000000000001', null,
+    'quiz_exam_prep', 'note', 'Quiz 1 prep', 'quiz-1-prep', 0, 'published',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
+on conflict (id) do nothing;
+
+insert into public.node_versions (node_id, version_no, body_md, author_id, change_note)
+values
+  ('eeeeeeee-0000-eeee-0000-000000000002', 1,
+    '## Lecture 1\n\nDraft notes for the first lecture. المحاضرة الأولى.',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Initial draft'),
+  ('eeeeeeee-0000-eeee-0000-000000000003', 1,
+    '## Quiz 1 prep\n\nQuestions and answers for quiz 1. اختبار أول.',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'First published version')
+on conflict (node_id, version_no) do nothing;
+
+update public.nodes
+set published_version_id = (
+  select id from public.node_versions
+  where node_id = 'eeeeeeee-0000-eeee-0000-000000000003' and version_no = 1
+)
+where id = 'eeeeeeee-0000-eeee-0000-000000000003';
+
+insert into public.tags (id, name)
+values
+  ('f0f0f0f0-0000-4f0f-8f0f-000000000001', 'quiz1'),
+  ('f0f0f0f0-0000-4f0f-8f0f-000000000002', 'final')
+on conflict (name) do nothing;
+
+insert into public.node_tags (node_id, tag_id)
+values
+  ('eeeeeeee-0000-eeee-0000-000000000003', 'f0f0f0f0-0000-4f0f-8f0f-000000000001')
+on conflict (node_id, tag_id) do nothing;
