@@ -241,3 +241,69 @@ export const lockSchema = z.object({
 });
 
 export type SearchValues = z.infer<typeof searchSchema>;
+
+// ---------------------------------------------------------------------------
+// M3 assets (spec sections 5, 6, 10, 11 rule 4)
+// ---------------------------------------------------------------------------
+
+export const assetKindSchema = z.enum([
+  "image",
+  "pdf",
+  "audio",
+  "video",
+  "document",
+  "other",
+]);
+export type AssetKind = z.infer<typeof assetKindSchema>;
+
+export const assetStorageSchema = z.enum(["supabase", "drive", "link"]);
+export type AssetStorage = z.infer<typeof assetStorageSchema>;
+
+/** A Drive or web link replaces an oversized upload (spec section 6). */
+export const addLinkAssetSchema = z.object({
+  course_id: z.uuid(),
+  node_id: z.uuid().nullable(),
+  kind: assetKindSchema,
+  storage: z.enum(["drive", "link"]),
+  url: z.url("Enter a valid link.").max(2048),
+  title: z.string().trim().min(1, "Give it a title.").max(200),
+});
+
+/** After the browser uploads to Storage, the action records the row. */
+export const registerUploadSchema = z.object({
+  course_id: z.uuid(),
+  node_id: z.uuid().nullable(),
+  kind: assetKindSchema,
+  path_or_url: z.string().min(1).max(1024),
+  title: z.string().trim().min(1, "Give it a title.").max(200),
+  mime: z.string().min(1).max(120),
+  size_bytes: z.number().int().positive().max(10_485_760),
+});
+
+/** Rename, and toggle the two student flags (spec section 10). */
+export const updateAssetSchema = z.object({
+  asset_id: z.uuid(),
+  title: z.string().trim().min(1, "Give it a title.").max(200).optional(),
+  student_visible: z.boolean().optional(),
+  student_downloadable: z.boolean().optional(),
+});
+
+/** Replace: a new upload (already in Storage) or a new link. */
+export const replaceAssetSchema = z.object({
+  asset_id: z.uuid(),
+  storage: assetStorageSchema,
+  path_or_url: z.string().min(1).max(2048),
+  mime: z.string().min(1).max(120),
+  size_bytes: z.number().int().positive().max(10_485_760).nullable(),
+});
+
+export const deleteAssetSchema = z.object({
+  asset_id: z.uuid(),
+});
+
+/** Browser OCR (M5) and transcripts (M6) write text back through the server. */
+export const saveAssetTextSchema = z.object({
+  asset_id: z.uuid(),
+  field: z.enum(["ocr_text", "transcript_text"]),
+  text: z.string().max(1_000_000),
+});
