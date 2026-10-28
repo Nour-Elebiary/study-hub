@@ -29,6 +29,25 @@ export async function signInAction(
     return { error: "Could not sign you in with that email and password." };
   }
 
+  // A disabled or soft-deleted leader cannot sign in (spec M1 acceptance).
+  // End the session that was just created and say why, plainly.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_active, deleted_at")
+      .eq("id", user.id)
+      .single();
+    if (!profile || !profile.is_active || profile.deleted_at) {
+      await supabase.auth.signOut();
+      return {
+        error: "This account has been disabled. Ask your administrator.",
+      };
+    }
+  }
+
   redirect("/");
 }
 

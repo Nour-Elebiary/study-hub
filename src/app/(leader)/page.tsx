@@ -1,3 +1,4 @@
+import { FirstRunTour } from "@/app/(leader)/first-run-tour";
 import {
   Card,
   CardContent,
@@ -26,6 +27,8 @@ export default async function LeaderHomePage() {
       <h1 className="text-2xl font-bold">
         Welcome, {session.profile.display_name}
       </h1>
+
+      {!session.profile.tour_done && <FirstRunTour />}
 
       <Card>
         <CardHeader>

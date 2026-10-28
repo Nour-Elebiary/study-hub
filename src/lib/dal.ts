@@ -9,6 +9,8 @@ export type Profile = {
   global_role: "admin" | "leader";
   must_change_password: boolean;
   is_active: boolean;
+  deleted_at: string | null;
+  tour_done: boolean;
 };
 
 export type Session = {
@@ -27,7 +29,9 @@ export const getSession = cache(async (): Promise<Session | null> => {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id, display_name, global_role, must_change_password, is_active")
+    .select(
+      "id, display_name, global_role, must_change_password, is_active, deleted_at, tour_done",
+    )
     .eq("id", user.id)
     .single();
   if (error || !profile) return null;
@@ -49,8 +53,9 @@ export async function requireSession(): Promise<Session> {
   if (!session) {
     redirect("/login");
   }
-  if (!session.profile.is_active) {
-    // Disabled account (spec section 9): end the session and show the notice.
+  if (!session.profile.is_active || session.profile.deleted_at) {
+    // Disabled or soft-deleted account (spec section 9): end the session and
+    // show the notice.
     const supabase = await createClient();
     await supabase.auth.signOut();
     redirect("/login?disabled=1");

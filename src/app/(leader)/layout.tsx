@@ -15,6 +15,7 @@ export const instant = false;
  */
 export default async function LeaderLayout({ children }: LayoutProps<"/">) {
   const session = await requireSession();
+  const isAdmin = session.profile.global_role === "admin";
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -27,7 +28,17 @@ export default async function LeaderLayout({ children }: LayoutProps<"/">) {
               {session.profile.global_role === "admin" && " · admin"}
             </p>
           </div>
-          <SignOutButton />
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="hover:bg-muted inline-flex h-9 items-center rounded-md px-3 text-sm font-medium"
+              >
+                Admin
+              </Link>
+            )}
+            <SignOutButton />
+          </div>
         </div>
       </header>
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-4 pb-20 sm:pb-8">
