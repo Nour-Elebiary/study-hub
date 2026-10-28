@@ -83,6 +83,12 @@ export default async function CoursePage({
             {course.semester}
           </p>
         )}
+        <Link
+          href={`/courses/${courseId}/access`}
+          className="mt-2 inline-flex text-sm font-medium underline underline-offset-4"
+        >
+          Student access (join codes) →
+        </Link>
       </div>
 
       <ContentTree
