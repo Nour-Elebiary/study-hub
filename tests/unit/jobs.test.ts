@@ -31,7 +31,7 @@ describe("job params schemas", () => {
   it("accepts a Word conversion targeting markdown", () => {
     const parsed = jobParamsSchema.safeParse({
       type: "convert",
-      target: "markdown",
+      tool: "word_to_markdown",
     });
     expect(parsed.success).toBe(true);
   });
@@ -39,8 +39,8 @@ describe("job params schemas", () => {
   it("accepts a merge with two assets and a split with pages", () => {
     expect(
       jobParamsSchema.safeParse({
-        type: "pdf",
-        operation: "merge",
+        type: "convert",
+        tool: "pdf_merge",
         asset_ids: [
           "cccccccc-0000-4ccc-8ccc-000000000001",
           "cccccccc-0000-4ccc-8ccc-000000000002",
@@ -49,8 +49,8 @@ describe("job params schemas", () => {
     ).toBe(true);
     expect(
       jobParamsSchema.safeParse({
-        type: "pdf",
-        operation: "split",
+        type: "convert",
+        tool: "pdf_split",
         pages: "1-3,5",
       }).success,
     ).toBe(true);
@@ -59,9 +59,19 @@ describe("job params schemas", () => {
   it("rejects malformed page ranges", () => {
     expect(
       jobParamsSchema.safeParse({
-        type: "pdf",
-        operation: "split",
+        type: "convert",
+        tool: "pdf_split",
         pages: "1;2",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a merge with fewer than two assets", () => {
+    expect(
+      jobParamsSchema.safeParse({
+        type: "convert",
+        tool: "pdf_merge",
+        asset_ids: ["cccccccc-0000-4ccc-8ccc-000000000001"],
       }).success,
     ).toBe(false);
   });

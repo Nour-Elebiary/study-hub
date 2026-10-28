@@ -6,6 +6,7 @@ import { writeAudit } from "@/lib/audit";
 import { requireSession } from "@/lib/dal";
 import {
   completeJobSchema,
+  CONVERT_TOOL_LABELS,
   createJobSchema,
   JOB_TYPE_LABELS,
   jobIdSchema,
@@ -63,19 +64,30 @@ export async function createJobAction(
 
   // Type-specific eligibility and params (spec section 7 table).
   const params: JobParams = parsed.data.params;
+  if (params.type !== parsed.data.type) {
+    return firstError("The job options do not match the job type.");
+  }
   if (parsed.data.type === "ocr") {
     if (asset.kind !== "image") {
       return firstError("OCR works on image files. Pick a photo or scan.");
     }
-  } else if (parsed.data.type === "convert") {
+  } else if (
+    parsed.data.type === "convert" &&
+    params.type === "convert" &&
+    params.tool === "word_to_markdown"
+  ) {
     if (asset.mime !== DOCX_MIME) {
       return firstError("Word to Markdown works on .docx files.");
     }
-  } else if (parsed.data.type === "pdf") {
+  } else if (
+    parsed.data.type === "convert" &&
+    params.type === "convert" &&
+    (params.tool === "pdf_merge" || params.tool === "pdf_split")
+  ) {
     if (asset.kind !== "pdf") {
       return firstError("PDF tools work on PDF files.");
     }
-    if (params.type === "pdf" && params.operation === "merge") {
+    if (params.tool === "pdf_merge") {
       if (!params.asset_ids || params.asset_ids.length < 2) {
         return firstError("Pick at least two PDFs to merge.");
       }
@@ -93,11 +105,7 @@ export async function createJobAction(
         return firstError("All PDFs to merge must be in this course.");
       }
     }
-    if (
-      params.type === "pdf" &&
-      params.operation === "split" &&
-      !params.pages
-    ) {
+    if (params.tool === "pdf_split" && !params.pages) {
       return firstError("Say which pages to keep, like 1-3,5.");
     }
   } else {
@@ -302,24 +310,32 @@ export async function completeJobAction(
 
   const params = job.params as JobParams;
   const sourceTitle = source.title || "the source file";
+  // Convert jobs carry a tool in params; the label comes from the tool, not
+  // the generic "convert" type label.
+  const tool = params.type === "convert" ? params.tool : undefined;
   const label =
-    JOB_TYPE_LABELS[job.type as keyof typeof JOB_TYPE_LABELS] ?? job.type;
+    tool !== undefined
+      ? CONVERT_TOOL_LABELS[tool]
+      : (JOB_TYPE_LABELS[job.type as keyof typeof JOB_TYPE_LABELS] ?? job.type);
 
   let title: string;
   let body: string;
   let resultTitle: string;
-  if (job.type === "pdf") {
-    const operation = params.type === "pdf" ? params.operation : "merge";
+  if (tool === "pdf_merge" || tool === "pdf_split") {
     title =
-      operation === "merge"
+      tool === "pdf_merge"
         ? `Merged PDF — ${sourceTitle}`
         : `Split PDF — ${sourceTitle}`;
     body =
-      operation === "merge"
-        ? `A combined PDF made from ${params.type === "pdf" ? (params.asset_ids?.length ?? 0) : 0} files. Review it, then publish or delete this note.`
-        : `Pages ${params.type === "pdf" ? (params.pages ?? "") : ""} of ${sourceTitle}, saved as a new PDF. Review it, then publish or delete this note.`;
+      tool === "pdf_merge"
+        ? `A combined PDF made from ${
+            params.type === "convert" ? (params.asset_ids?.length ?? 0) : 0
+          } files. Review it, then publish or delete this note.`
+        : `Pages ${
+            params.type === "convert" ? (params.pages ?? "") : ""
+          } of ${sourceTitle}, saved as a new PDF. Review it, then publish or delete this note.`;
     resultTitle =
-      operation === "merge"
+      tool === "pdf_merge"
         ? `${sourceTitle} (merged).pdf`
         : `${sourceTitle} (split).pdf`;
   } else {

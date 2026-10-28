@@ -41,7 +41,24 @@ export const OCR_LANGUAGE_LABELS: Record<OcrLanguage, string> = {
   ara: "Arabic",
 };
 
-/** Params per job type, validated before the row is written. */
+/**
+ * Params per job type, validated before the row is written. The jobs.type
+ * enum (spec section 5) has only four values, so the PDF tools are
+ * "convert" jobs whose params say which tool runs.
+ */
+export const convertTools = [
+  "word_to_markdown",
+  "pdf_merge",
+  "pdf_split",
+] as const;
+export type ConvertTool = (typeof convertTools)[number];
+
+export const CONVERT_TOOL_LABELS: Record<ConvertTool, string> = {
+  word_to_markdown: "Word to Markdown",
+  pdf_merge: "Merge PDFs",
+  pdf_split: "Split a PDF",
+};
+
 export const jobParamsSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("ocr"),
@@ -49,14 +66,10 @@ export const jobParamsSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("convert"),
-    target: z.literal("markdown"),
-  }),
-  z.object({
-    type: z.literal("pdf"),
-    operation: z.enum(["merge", "split"]),
-    /** Merge: the assets to combine, in order. */
+    tool: z.enum(convertTools),
+    /** pdf_merge: the assets to combine, in order. */
     asset_ids: z.array(z.uuid()).min(2).max(10).optional(),
-    /** Split: pages to keep, e.g. "1-3,5". */
+    /** pdf_split: pages to keep, e.g. "1-3,5". */
     pages: z
       .string()
       .regex(/^\d+(-\d+)?(,\d+(-\d+)?)*$/, "Use page numbers like 1-3,5.")
@@ -98,7 +111,7 @@ export type CompleteJobValues = z.infer<typeof completeJobSchema>;
 /** Human labels for the job screen. */
 export const JOB_TYPE_LABELS: Record<JobType, string> = {
   ocr: "Read text from an image (OCR)",
-  convert: "Word to Markdown",
+  convert: "Convert a file",
   transcribe: "Audio to text",
   ai_task: "AI task",
 };
