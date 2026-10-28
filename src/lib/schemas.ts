@@ -307,3 +307,44 @@ export const saveAssetTextSchema = z.object({
   field: z.enum(["ocr_text", "transcript_text"]),
   text: z.string().max(1_000_000),
 });
+
+// ---------------------------------------------------------------------------
+// M4 student site (spec section 10)
+// ---------------------------------------------------------------------------
+
+/** The raw join-code field: normalization (dashes, case) happens server-side. */
+export const joinCodeInputSchema = z
+  .string()
+  .trim()
+  .min(4, "Enter the join code.")
+  .max(20, "That code is too long.");
+
+export type JoinCodeInput = z.infer<typeof joinCodeInputSchema>;
+
+/** Creating a join code (leader/admin server action, spec section 10 rule 1). */
+export const joinCodeCreateSchema = z.object({
+  course_id: z.uuid().nullable(), // null = unlocks every non-archived course
+  label: z.string().trim().max(80).default(""),
+  expires_in_days: z.number().int().min(1).max(365).nullable().default(null),
+  max_uses: z.number().int().min(1).max(10_000).nullable().default(null),
+});
+
+export type JoinCodeCreateValues = z.infer<typeof joinCodeCreateSchema>;
+
+/** "Suggest a correction" from a student (spec section 10 rule 4). */
+export const suggestionSchema = z.object({
+  note_id: z.uuid(),
+  text: z
+    .string()
+    .trim()
+    .min(1, "Write the correction first.")
+    .max(2000, "Keep the correction under 2000 characters."),
+});
+
+export type SuggestionValues = z.infer<typeof suggestionSchema>;
+
+/** Marking a suggestion resolved (leader server action). */
+export const resolveSuggestionSchema = z.object({
+  suggestion_id: z.uuid(),
+  resolved: z.boolean(),
+});
