@@ -130,8 +130,10 @@ create policy delete_own_or_owner_assets on public.assets
   );
 
 revoke insert, update, delete on public.assets from authenticated;
+-- `id` is grantable like on nodes (see 00005); ai_allowed and created_by stay
+-- out of client hands.
 grant insert (
-  course_id, node_id, kind, storage, path_or_url, drive_file_id,
+  id, course_id, node_id, kind, storage, path_or_url, drive_file_id,
   title, mime, size_bytes, student_visible, student_downloadable
 ) on public.assets to authenticated;
 grant update (

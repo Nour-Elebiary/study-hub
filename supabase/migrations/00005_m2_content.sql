@@ -382,8 +382,12 @@ create policy update_writable_nodes on public.nodes
 -- No delete policy: deleting is a soft delete written by the server.
 
 revoke insert, update, delete on public.nodes from authenticated;
+-- `id` is grantable: clients may generate their own UUIDs (standard Supabase
+-- practice); the PK still rejects collisions. The protected columns are
+-- status/deleted_at (server-only transitions) and created_by (defaults to
+-- auth.uid(), never client-settable).
 grant insert (
-  course_id, parent_id, area, kind, title, slug, sort_order,
+  id, course_id, parent_id, area, kind, title, slug, sort_order,
   assigned_to, due_date, draft_body_md
 ) on public.nodes to authenticated;
 grant update (
