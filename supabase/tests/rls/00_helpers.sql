@@ -29,3 +29,9 @@ as $$
     true -- local to the transaction
   );
 $$;
+
+-- The tests call these helpers while role-switched (assert_true evaluates the
+-- caller's boolean under that role's own RLS context), so the roles need
+-- schema usage. Function execute is public by default; the helpers only raise
+-- exceptions and set local GUCs, so this is safe in the local test database.
+grant usage on schema tests to anon, authenticated;

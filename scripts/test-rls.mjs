@@ -11,7 +11,9 @@ import pg from "pg";
 const SUPA = ["supabase"]; // via npx so it works with or without a global install
 
 function run(args) {
-  const res = spawnSync("npx", [...SUPA, ...args], {
+  // join into one command string: spawnSync with shell:true and an args array
+  // is deprecated (DEP0190) and the paths here never contain spaces
+  const res = spawnSync([...SUPA, ...args].join(" "), {
     shell: true,
     encoding: "utf8",
     env: process.env,
