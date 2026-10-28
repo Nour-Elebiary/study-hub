@@ -4,6 +4,10 @@ import { notFound } from "next/navigation";
 import Markdown from "react-markdown";
 import { NoteActions } from "@/app/(leader)/courses/[courseId]/nodes/[nodeId]/note-actions";
 import { NoteComments } from "@/app/(leader)/courses/[courseId]/nodes/[nodeId]/note-comments";
+import {
+  NoteAssets,
+  type AssetItem,
+} from "@/app/(leader)/courses/[courseId]/nodes/[nodeId]/assets/note-assets";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getMembership } from "@/lib/course-access";
@@ -58,6 +62,23 @@ export default async function NotePage({
     .select("id, parent_id, author_id, body, resolved, created_at")
     .eq("node_id", nodeId)
     .order("created_at");
+
+  // Files attached to this note (M3). Everyone in the course sees them.
+  const { data: assetRows } = await supabase
+    .from("assets")
+    .select(
+      "id, title, kind, storage, path_or_url, mime, size_bytes, student_visible, student_downloadable, created_at",
+    )
+    .eq("node_id", nodeId)
+    .order("created_at");
+
+  // The upload size limit lives in settings (spec rule 8), not in code.
+  const { data: limitRow } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "max_file_mb")
+    .maybeSingle();
+  const maxFileMb = typeof limitRow?.value === "number" ? limitRow.value : 10;
 
   // Names of everyone involved with this note (comment authors, the
   // assignee). RLS limits this to co-members and, for admins, everyone.
@@ -116,6 +137,10 @@ export default async function NotePage({
     role === "owner" ||
     (role === "editor" && (isMine || node.assigned_to === session.userId)) ||
     (role === "contributor" && isMine && node.status === "draft");
+  // Files: admins, owners, editors and contributors manage them; reviewers
+  // and other members only see and download (spec section 4).
+  const canManageAssets =
+    isAdmin || role === "owner" || role === "editor" || role === "contributor";
 
   return (
     <div className="grid gap-4">
@@ -168,6 +193,26 @@ export default async function NotePage({
           </div>
         </CardContent>
       </Card>
+
+      <NoteAssets
+        courseId={courseId}
+        nodeId={node.id}
+        canManage={canManageAssets}
+        maxFileMb={maxFileMb}
+        assets={
+          (assetRows ?? []).map((a) => ({
+            id: a.id,
+            title: a.title,
+            kind: a.kind,
+            storage: a.storage,
+            pathOrUrl: a.path_or_url,
+            mime: a.mime,
+            sizeBytes: a.size_bytes,
+            studentVisible: a.student_visible,
+            studentDownloadable: a.student_downloadable,
+          })) satisfies AssetItem[]
+        }
+      />
 
       <div className="flex flex-wrap gap-2 text-sm">
         <Link
