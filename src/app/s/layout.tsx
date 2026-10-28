@@ -16,7 +16,17 @@ export default async function StudentLayout({ children }: LayoutProps<"/s">) {
           <Link href="/s" className="text-sm font-semibold">
             Study Hub
           </Link>
-          <span className="text-muted-foreground text-xs">Student view</span>
+          <nav
+            aria-label="Student navigation"
+            className="flex items-center gap-3"
+          >
+            <Link href="/s/search" className="text-sm font-medium">
+              Search
+            </Link>
+            <Link href="/s/tags" className="text-sm font-medium">
+              Tags
+            </Link>
+          </nav>
         </div>
       </header>
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-4 pb-16">

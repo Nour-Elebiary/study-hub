@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { joinCodeInputSchema } from "@/lib/schemas";
+import { joinCodeInputSchema, suggestionSchema } from "@/lib/schemas";
 import { hashJoinCode } from "@/lib/join-code";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
@@ -12,6 +12,7 @@ import {
   studentCookieOptions,
   verifyStudentCookie,
 } from "@/lib/student-cookie";
+import { requireStudentScope, getStudentCourseIds } from "@/lib/student-access";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type JoinActionState = { error: string } | null;
@@ -120,4 +121,61 @@ function mergeScope(
     iat: Date.now(),
     scope: { all: false, courseIds: existingIds },
   };
+}
+
+export type SuggestActionState = { error: string } | { ok: true } | null;
+
+/**
+ * "Suggest a correction" (spec section 10 rule 4): inserts an anonymous
+ * suggestion on a published note the student can see. No personal data is
+ * stored — the rate limiter keeps only a salted hash of the IP. Limited to
+ * 3 per hour per IP.
+ */
+export async function suggestCorrectionAction(
+  nodeId: string,
+  _prev: SuggestActionState,
+  formData: FormData,
+): Promise<SuggestActionState> {
+  const scope = await requireStudentScope();
+
+  const parsed = suggestionSchema.safeParse({
+    note_id: nodeId,
+    text: formData.get("text"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the text." };
+  }
+
+  if (!(await checkRateLimit("suggest", getClientIp(await headers())))) {
+    return {
+      error: "You have sent several corrections recently. Try again later.",
+    };
+  }
+
+  // The note must be published and inside the student's scope.
+  const admin = createAdminClient();
+  const { data: node } = await admin
+    .from("nodes")
+    .select("id, course_id, status, deleted_at")
+    .eq("id", parsed.data.note_id)
+    .single();
+  if (!node || node.deleted_at || node.status !== "published") {
+    return { error: "This note is not available." };
+  }
+  if (node.course_id) {
+    const courseIds = await getStudentCourseIds(scope);
+    if (!courseIds.includes(node.course_id)) {
+      return { error: "This note is not available." };
+    }
+  }
+
+  const { error } = await admin.from("suggestions").insert({
+    note_id: parsed.data.note_id,
+    text: parsed.data.text,
+  });
+  if (error) {
+    return { error: "Could not send the correction. Try again." };
+  }
+
+  return { ok: true };
 }
