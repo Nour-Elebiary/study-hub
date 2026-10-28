@@ -118,3 +118,126 @@ export const membershipRemoveSchema = z.object({
 export const confirmPasswordSchema = z.object({
   confirm_password: passwordSchema,
 });
+
+// ---------------------------------------------------------------------------
+// M2 workspace forms (spec sections 5, 6)
+// ---------------------------------------------------------------------------
+
+export const nodeKindSchema = z.enum([
+  "core",
+  "course_home",
+  "section",
+  "note",
+]);
+export type NodeKind = z.infer<typeof nodeKindSchema>;
+
+export const nodeStatusSchema = z.enum(["draft", "in_review", "published"]);
+export type NodeStatus = z.infer<typeof nodeStatusSchema>;
+
+export const createNodeSchema = z.object({
+  course_id: z.uuid(),
+  parent_id: z.uuid().nullable(),
+  area: contentAreaSchema,
+  kind: z.enum(["section", "note"]),
+  title: z.string().trim().min(1, "Give it a title.").max(160),
+  template_id: z.string().max(40).optional(),
+});
+
+export const renameNodeSchema = z.object({
+  node_id: z.uuid(),
+  title: z.string().trim().min(1, "Give it a title.").max(160),
+});
+
+export const reorderNodeSchema = z.object({
+  node_id: z.uuid(),
+  direction: z.enum(["up", "down"]),
+});
+
+export const saveDraftSchema = z.object({
+  node_id: z.uuid(),
+  body_md: z.string().max(500_000, "This note is too long."),
+});
+
+export const saveVersionSchema = z.object({
+  node_id: z.uuid(),
+  body_md: z.string().max(500_000, "This note is too long."),
+  change_note: z.string().trim().max(300).optional().default(""),
+});
+
+export const setNodeStatusSchema = z
+  .object({
+    node_id: z.uuid(),
+    status: nodeStatusSchema,
+    // Required when sending a note back from review (spec section 6).
+    send_back_comment: z.string().trim().max(2000).optional(),
+  })
+  .refine(
+    (data) =>
+      data.status !== "draft" || (data.send_back_comment ?? "").length > 0,
+    {
+      message: "Write what needs to change before sending it back.",
+      path: ["send_back_comment"],
+    },
+  );
+
+export const assignNodeSchema = z.object({
+  node_id: z.uuid(),
+  assigned_to: z.uuid().nullable(),
+  due_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Use the date picker.")
+    .optional()
+    .or(z.literal("")),
+});
+
+export const softDeleteNodeSchema = z.object({
+  node_id: z.uuid(),
+});
+
+export const restoreVersionSchema = z.object({
+  node_id: z.uuid(),
+  version_no: z.number().int().min(1),
+});
+
+export const setNodeTagsSchema = z.object({
+  node_id: z.uuid(),
+  tags: z
+    .array(
+      z
+        .string()
+        .trim()
+        .toLowerCase()
+        .min(1)
+        .max(40)
+        .regex(
+          /^[a-z0-9\u0600-\u06FF_-]+$/,
+          "Letters, digits, hyphen or underscore.",
+        ),
+    )
+    .max(20, "Use at most 20 tags."),
+});
+
+export const addCommentSchema = z.object({
+  node_id: z.uuid(),
+  parent_id: z.uuid().nullable(),
+  body: z.string().trim().min(1, "Write your comment.").max(4000),
+});
+
+export const resolveCommentSchema = z.object({
+  comment_id: z.uuid(),
+  resolved: z.boolean(),
+});
+
+export const searchSchema = z.object({
+  q: z.string().trim().max(200).optional().default(""),
+  course_id: z.uuid().optional().or(z.literal("")),
+  area: contentAreaSchema.optional().or(z.literal("")),
+  status: nodeStatusSchema.optional().or(z.literal("")),
+  tag: z.string().trim().max(40).optional().or(z.literal("")),
+});
+
+export const lockSchema = z.object({
+  node_id: z.uuid(),
+});
+
+export type SearchValues = z.infer<typeof searchSchema>;
