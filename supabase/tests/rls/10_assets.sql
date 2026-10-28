@@ -34,7 +34,7 @@ set local request.jwt.claims =
   '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddd01","role":"authenticated"}';
 
 select tests.assert_true (
-  (select count (*) from public.assets) = 4,
+  (select count (*) from public.assets) = 3,
   'editor reads their course''s assets: seed Drive link + two uploads'
 );
 
@@ -135,7 +135,7 @@ set local request.jwt.claims =
 
 select tests.assert_true (
   (select count (*) from public.assets
-    where course_id = 'cccccccc-0000-cccc-0000-000000000001') = 5,
+    where course_id = 'cccccccc-0000-cccc-0000-000000000001') = 4,
   'reviewer membership grants read access to the reviewed course''s assets'
 );
 

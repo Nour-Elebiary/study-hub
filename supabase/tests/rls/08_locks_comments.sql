@@ -119,13 +119,14 @@ select tests.assert_true (
 );
 
 -- --- peer profiles -------------------------------------------------------------
--- Leader A shares COURSE-A with Leader B (B is its reviewer since test 07),
--- so A may read B's display name — but nobody else's.
+-- Leader A shares COURSE-A with its owner (the seeded admin) and with Leader B
+-- (B is its reviewer since test 07), so A may read their display names — but
+-- nobody else's (the second admin owns no course).
 set local request.jwt.claims =
   '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddd01","role":"authenticated"}';
 
 select tests.assert_true (
-  (select count (*) from public.profiles) = 2,
+  (select count (*) from public.profiles) = 3,
   'a leader reads only their own and co-member profiles'
 );
 

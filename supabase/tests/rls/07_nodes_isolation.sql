@@ -36,7 +36,7 @@ set local request.jwt.claims =
   '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddd01","role":"authenticated"}';
 
 select tests.assert_true (
-  (select count (*) from public.nodes) = 3, -- two seed notes + the area note
+  (select count (*) from public.nodes) = 4, -- three seed nodes + the area note
   'leader A reads only COURSE-A nodes, never COURSE-B drafts'
 );
 
@@ -85,13 +85,13 @@ set local request.jwt.claims =
 --- contributor reads COURSE-B nodes and COURSE-A nodes (as its reviewer) ------
 select tests.assert_true (
   (select count (*) from public.nodes
-    where course_id = 'cccccccc-0000-cccc-0000-000000000002') = 2,
+    where course_id = 'cccccccc-0000-cccc-0000-000000000002') = 1,
   'contributor reads their own course nodes'
 );
 
 select tests.assert_true (
   (select count (*) from public.nodes
-    where course_id = 'cccccccc-0000-cccc-0000-000000000001') = 3,
+    where course_id = 'cccccccc-0000-cccc-0000-000000000001') = 4,
   'reviewer membership grants read access to the reviewed course'
 );
 

@@ -123,8 +123,8 @@ set local request.jwt.claims =
   '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}';
 
 select tests.assert_true (
-  (select count (*) from public.worker_heartbeats) = 1,
-  'the admin reads worker heartbeats (online/offline display)'
+  (select count (*) from public.worker_heartbeats) = 2,
+  'the admin reads worker heartbeats (both workers polled, empty claims included)'
 );
 
 set local request.jwt.claims =
