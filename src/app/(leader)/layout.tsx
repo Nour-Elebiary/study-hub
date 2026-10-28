@@ -29,6 +29,12 @@ export default async function LeaderLayout({ children }: LayoutProps<"/">) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href="/jobs"
+              className="hover:bg-muted inline-flex h-9 items-center rounded-md px-3 text-sm font-medium"
+            >
+              Jobs
+            </Link>
             {isAdmin && (
               <Link
                 href="/admin"

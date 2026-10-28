@@ -41,6 +41,10 @@ export const OCR_LANGUAGE_LABELS: Record<OcrLanguage, string> = {
   ara: "Arabic",
 };
 
+/** The .docx mime (Word to Markdown eligibility, spec section 7 table). */
+export const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
 /**
  * Params per job type, validated before the row is written. The jobs.type
  * enum (spec section 5) has only four values, so the PDF tools are

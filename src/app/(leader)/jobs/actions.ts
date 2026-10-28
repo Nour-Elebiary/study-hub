@@ -8,6 +8,7 @@ import {
   completeJobSchema,
   CONVERT_TOOL_LABELS,
   createJobSchema,
+  DOCX_MIME,
   JOB_TYPE_LABELS,
   jobIdSchema,
   type JobParams,
@@ -16,9 +17,6 @@ import { slugify } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
 
 export type JobActionState = { error: string } | { ok: true } | null;
-
-const DOCX_MIME =
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function firstError(message: string): { error: string } {
   return { error: message };
