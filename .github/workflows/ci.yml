@@ -46,6 +46,32 @@ jobs:
             supabase db execute --file "$f"
           done
 
+  e2e:
+    name: Playwright e2e (local Supabase)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - name: Start local Supabase and write .env.local
+        run: |
+          supabase start
+          supabase db reset
+          # The seeded stack needs the real local keys, not the placeholders.
+          supabase status -o env | grep -E '^(ANON_KEY|SERVICE_ROLE_KEY)=' | sed \
+            -e 's/^ANON_KEY=/NEXT_PUBLIC_SUPABASE_ANON_KEY=/' \
+            -e 's/^SERVICE_ROLE_KEY=/SUPABASE_SERVICE_ROLE_KEY=/' > .env.local
+          grep -v -E '^(NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY)=' \
+            .env.example >> .env.local
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
   security:
     name: Secret scan + dependency audit
     runs-on: ubuntu-latest

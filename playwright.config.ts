@@ -4,7 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
  * E2E tests. The mobile project is first-class because the app is designed
  * at 360 px width first (spec section 10).
  * Run locally only when the app + local Supabase (Docker) are set up: `npm run test:e2e`
- * CI omits Playwright until M4 (spec M0 scope), but the config is ready.
+ * CI runs the same suite against a seeded local Supabase (see .github/workflows/ci.yml).
  */
 export default defineConfig({
   testDir: "./tests/e2e",
