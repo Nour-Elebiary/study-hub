@@ -1,7 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { signInSchema } from "@/lib/schemas";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 export type LoginState = { error: string } | null;
@@ -18,6 +20,15 @@ export async function signInAction(
   if (!parsed.success) {
     return {
       error: "Enter your email and a password of at least 10 characters.",
+    };
+  }
+
+  // Rate limit before touching auth (spec section 11 rule 5; number chosen
+  // in docs/QUESTIONS.md #11). Checked after zod so typos in the form don't
+  // burn a legitimate attempt.
+  if (!(await checkRateLimit("login", getClientIp(await headers())))) {
+    return {
+      error: "Too many attempts. Wait a few minutes and try again.",
     };
   }
 

@@ -267,6 +267,17 @@ export async function transitionNodeStatusAction(
 
   revalidatePath(`/courses/${node.course_id}/nodes/${node.id}`);
   revalidatePath("/");
+  // Student pages are read-only views of published content (spec section 10
+  // rule 5): any status change reshapes what they may see, so refresh the
+  // whole student site on publish, unpublish or send-back.
+  revalidatePath("/s");
+  revalidatePath("/s/search");
+  revalidatePath("/s/tags");
+  if (node.course_id) {
+    revalidatePath(`/s/courses/${node.course_id}`);
+    revalidatePath(`/s/map/${node.course_id}`);
+  }
+  revalidatePath(`/s/notes/${node.id}`);
   return { ok: true };
 }
 
