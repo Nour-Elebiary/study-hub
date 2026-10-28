@@ -18,7 +18,11 @@ export const viewport: Viewport = {
   // Mobile-first: designed at 360 px width first (spec section 10).
   width: "device-width",
   initialScale: 1,
-  themeColor: "#171717",
+  // Follows the comfort dark mode: match the page background.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export const metadata: Metadata = {
@@ -45,6 +49,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       dir="ltr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Applies the saved text size before first paint (spec section 10
+            rule 6) so the page never flashes at the wrong size. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var s=localStorage.getItem('sh_text_size');if(s)document.documentElement.style.fontSize=s}catch(e){}",
+          }}
+        />
+      </head>
       <body className="flex min-h-full flex-col">
         {children}
         <RegisterServiceWorker />

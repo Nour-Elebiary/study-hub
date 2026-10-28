@@ -63,6 +63,7 @@ export default async function StudentTagsPage() {
               <Link
                 href={`/s/tags/${encodeURIComponent(name)}`}
                 className="bg-secondary text-secondary-foreground inline-block rounded-full px-3 py-1.5 text-sm font-medium"
+                dir="auto"
               >
                 #{name} ({info.count})
               </Link>

@@ -68,6 +68,7 @@ export default async function StudentTagPage({
               <Link
                 href={`/s/notes/${h.id}`}
                 className="block rounded-md border p-3 text-sm font-medium"
+                dir="auto"
               >
                 {h.title}
               </Link>

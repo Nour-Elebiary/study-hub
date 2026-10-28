@@ -67,6 +67,7 @@ export default async function StudentMapPage({
             <Link
               href={`/s/notes/${n.id}`}
               className="hover:bg-muted block rounded px-2 py-1.5 text-sm"
+              dir="auto"
             >
               {n.title}
             </Link>

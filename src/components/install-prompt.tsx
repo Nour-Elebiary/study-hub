@@ -45,7 +45,8 @@ function useIsIos(): boolean {
  * The install experience (spec section 10): Android/desktop get a real
  * install prompt; iPhone gets a short how-to (Share, then Add to Home
  * Screen). No push notifications are promised anywhere — iOS support for
- * them is unreliable. Hidden once installed or dismissed (remembered).
+ * them is unreliable. Hidden once installed or dismissed (remembered), and
+ * hidden when printing.
  */
 export function InstallPrompt() {
   const standalone = useStandalone();
@@ -78,7 +79,7 @@ export function InstallPrompt() {
       <div
         role="region"
         aria-label="Install Study Hub"
-        className="bg-muted fixed inset-x-3 bottom-3 z-50 flex items-center justify-between gap-3 rounded-lg border p-3 shadow-sm"
+        className="bg-muted fixed inset-x-3 bottom-3 z-50 flex items-center justify-between gap-3 rounded-lg border p-3 shadow-sm print:hidden"
       >
         <p className="text-sm font-medium">
           Add Study Hub to your home screen?
@@ -106,7 +107,7 @@ export function InstallPrompt() {
       <div
         role="region"
         aria-label="Install Study Hub"
-        className="bg-muted fixed inset-x-3 bottom-3 z-50 rounded-lg border p-3 text-sm shadow-sm"
+        className="bg-muted fixed inset-x-3 bottom-3 z-50 rounded-lg border p-3 text-sm shadow-sm print:hidden"
       >
         <p className="font-medium">Add Study Hub to your home screen</p>
         <p className="text-muted-foreground mt-1">

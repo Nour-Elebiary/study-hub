@@ -83,7 +83,9 @@ export default async function StudentSearchPage({
               href={`/s/notes/${h.id}`}
               className="block rounded-md border p-3 text-sm"
             >
-              <span className="font-medium">{h.title}</span>
+              <span className="font-medium" dir="auto">
+                {h.title}
+              </span>
               {h.courseTitle && (
                 <span className="text-muted-foreground text-xs">
                   {" "}

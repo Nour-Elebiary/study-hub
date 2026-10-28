@@ -66,7 +66,9 @@ export default async function StudentCoursePage({
         >
           ← My courses
         </Link>
-        <h1 className="mt-2 text-2xl font-bold">{course.title}</h1>
+        <h1 className="mt-2 text-2xl font-bold" dir="auto">
+          {course.title}
+        </h1>
         <p className="text-muted-foreground mt-1 text-sm">
           {course.code}
           {course.semester ? ` · ${course.semester}` : ""}

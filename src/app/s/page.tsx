@@ -70,7 +70,9 @@ export default async function StudentHomePage() {
                   href={`/s/courses/${course.id}`}
                   className="block rounded-md border p-3"
                 >
-                  <p className="font-medium">{course.title}</p>
+                  <p className="font-medium" dir="auto">
+                    {course.title}
+                  </p>
                   <p className="text-muted-foreground text-xs">
                     {course.code}
                     {course.semester ? ` · ${course.semester}` : ""}
@@ -96,7 +98,9 @@ export default async function StudentHomePage() {
                   href={`/s/notes/${d.id}`}
                   className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border p-3 text-sm"
                 >
-                  <span className="font-medium">{d.title}</span>
+                  <span className="font-medium" dir="auto">
+                    {d.title}
+                  </span>
                   <span className="text-muted-foreground text-xs">
                     {d.courseTitle} · {new Date(d.dueDate).toLocaleDateString()}
                   </span>

@@ -101,11 +101,13 @@ export default async function StudentNotePage({
       <div>
         <Link
           href={node.course_id ? `/s/courses/${node.course_id}` : "/s"}
-          className="text-muted-foreground text-sm underline underline-offset-4"
+          className="text-muted-foreground text-sm underline underline-offset-4 print:hidden"
         >
           ← Back
         </Link>
-        <h1 className="mt-2 text-2xl font-bold">{node.title}</h1>
+        <h1 className="mt-2 text-2xl font-bold" dir="auto">
+          {node.title}
+        </h1>
         {tagNames.length > 0 && (
           <p className="mt-1 flex flex-wrap gap-2">
             {tagNames.map((t) => (
@@ -164,7 +166,9 @@ export default async function StudentNotePage({
         </div>
       )}
 
-      <SuggestForm nodeId={nodeId} />
+      <div className="print:hidden">
+        <SuggestForm nodeId={nodeId} />
+      </div>
     </div>
   );
 }
