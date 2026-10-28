@@ -20,8 +20,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  assetEligibleForTool,
   CONVERT_TOOL_LABELS,
-  DOCX_MIME,
   JOB_STATUS_LABELS,
   JOB_TYPE_LABELS,
   OCR_LANGUAGE_LABELS,
@@ -63,17 +63,20 @@ export type JobRow = {
 };
 
 const TOOL_OPTIONS = [
-  { value: "ocr", label: "Read text from an image (OCR)" },
+  { value: "ocr", label: "Read text from a photo (OCR)" },
+  { value: "ocr_pdf", label: "Read text from a scanned PDF (OCR)" },
   { value: "word_to_markdown", label: "Word to Markdown" },
   { value: "pdf_merge", label: "Merge PDFs" },
   { value: "pdf_split", label: "Split a PDF" },
+  { value: "office_to_pdf", label: "Word or PowerPoint to PDF" },
+  { value: "video_to_audio", label: "Video to audio (MP3)" },
+  { value: "compress_video", label: "Compress a video" },
+  { value: "transcribe", label: "Audio to text" },
 ] as const;
 type ToolChoice = (typeof TOOL_OPTIONS)[number]["value"];
 
 function assetEligible(asset: AssetOption, tool: ToolChoice): boolean {
-  if (tool === "ocr") return asset.kind === "image";
-  if (tool === "word_to_markdown") return asset.mime === DOCX_MIME;
-  return asset.kind === "pdf";
+  return assetEligibleForTool(tool, asset);
 }
 
 /** Stable UTC timestamp (no locale, so server and client render the same). */
@@ -96,19 +99,33 @@ function statusBadgeVariant(status: JobStatus) {
 
 /** One short line describing what the job was asked to do. */
 function paramsSummary(type: string, params: unknown): string {
+  const p = params as {
+    languages?: OcrLanguage[];
+    source?: string;
+    tool?: string;
+    asset_ids?: string[];
+    pages?: string;
+  };
+  const languages = (p.languages ?? [])
+    .map((l) => OCR_LANGUAGE_LABELS[l])
+    .join(" + ");
   if (type === "ocr") {
-    const languages = (params as { languages?: OcrLanguage[] }).languages ?? [];
-    return languages.map((l) => OCR_LANGUAGE_LABELS[l]).join(" + ");
+    return p.source === "pdf_scan"
+      ? `Scanned PDF OCR (${languages})`
+      : languages;
+  }
+  if (type === "transcribe") {
+    return `Audio to text (${languages})`;
   }
   if (type === "convert") {
-    const tool = (params as { tool?: string }).tool;
-    if (tool === "pdf_merge") {
-      const count = (params as { asset_ids?: string[] }).asset_ids?.length ?? 0;
-      return `${CONVERT_TOOL_LABELS.pdf_merge} (${count} files)`;
+    if (p.tool === "pdf_merge") {
+      return `${CONVERT_TOOL_LABELS.pdf_merge} (${p.asset_ids?.length ?? 0} files)`;
     }
-    if (tool === "pdf_split") {
-      const pages = (params as { pages?: string }).pages ?? "";
-      return `${CONVERT_TOOL_LABELS.pdf_split} (pages ${pages})`;
+    if (p.tool === "pdf_split") {
+      return `${CONVERT_TOOL_LABELS.pdf_split} (pages ${p.pages ?? ""})`;
+    }
+    if (p.tool && p.tool in CONVERT_TOOL_LABELS) {
+      return CONVERT_TOOL_LABELS[p.tool as keyof typeof CONVERT_TOOL_LABELS];
     }
     return CONVERT_TOOL_LABELS.word_to_markdown;
   }
@@ -121,12 +138,15 @@ export function JobsClient({
   initialJobs,
   userId,
   isAdmin,
+  workerOnline,
 }: {
   courses: CourseOption[];
   assets: AssetOption[];
   initialJobs: JobRow[];
   userId: string;
   isAdmin: boolean;
+  /** null when this leader cannot read worker heartbeats (non-admin). */
+  workerOnline: boolean | null;
 }) {
   const [jobs, setJobs] = useState(initialJobs);
 
@@ -190,10 +210,22 @@ export function JobsClient({
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent jobs</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle>Recent jobs</CardTitle>
+            {workerOnline !== null && (
+              <Badge
+                variant={workerOnline ? "default" : "secondary"}
+                aria-live="polite"
+              >
+                Home Worker: {workerOnline ? "online" : "offline"}
+              </Badge>
+            )}
+          </div>
           <CardDescription>
-            Jobs run in this browser while this screen is open. A failed job
-            retries itself up to three times, with a longer wait each time.
+            Light jobs run in this browser while this screen is open. Heavy jobs
+            (scanned PDFs, Office files, video, audio) wait for the Home Worker.
+            A failed job retries itself up to three times, with a longer wait
+            each time.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
@@ -263,10 +295,16 @@ function JobForm({
   const [state, action, pending] = useActionState<JobActionState, FormData>(
     async (prev, fd) => {
       setLocalError(null);
-      const type = tool === "ocr" ? "ocr" : "convert";
+      const needsLanguages =
+        tool === "ocr" || tool === "ocr_pdf" || tool === "transcribe";
+      const type = needsLanguages
+        ? tool === "transcribe"
+          ? "transcribe"
+          : "ocr"
+        : "convert";
 
       let params: unknown;
-      if (tool === "ocr") {
+      if (needsLanguages) {
         const languages: OcrLanguage[] = [];
         if (fd.get("lang_eng") === "on") languages.push("eng");
         if (fd.get("lang_ara") === "on") languages.push("ara");
@@ -274,7 +312,12 @@ function JobForm({
           setLocalError("Pick at least one language.");
           return prev;
         }
-        params = { type: "ocr", languages };
+        params =
+          tool === "ocr"
+            ? { type: "ocr", languages, source: "image" }
+            : tool === "ocr_pdf"
+              ? { type: "ocr", languages, source: "pdf_scan" }
+              : { type: "transcribe", languages };
       } else if (tool === "word_to_markdown") {
         params = { type: "convert", tool: "word_to_markdown" };
       } else if (tool === "pdf_merge") {
@@ -284,13 +327,16 @@ function JobForm({
           return prev;
         }
         params = { type: "convert", tool: "pdf_merge", asset_ids: picked };
-      } else {
+      } else if (tool === "pdf_split") {
         const pages = String(fd.get("pages") ?? "").trim();
         if (!pages) {
           setLocalError("Say which pages to keep, like 1-3,5.");
           return prev;
         }
         params = { type: "convert", tool: "pdf_split", pages };
+      } else {
+        // office_to_pdf, video_to_audio, compress_video: no options.
+        params = { type: "convert", tool };
       }
 
       fd.set("type", type);
@@ -328,8 +374,10 @@ function JobForm({
       <CardHeader>
         <CardTitle>Start a job</CardTitle>
         <CardDescription>
-          The work happens in your browser — nothing is sent to another server.
-          The result lands in the course as a draft note for you to review.
+          Light jobs run right here in your browser. Heavy jobs (scanned PDFs,
+          Office files, video, audio) wait for the Home Worker — a small program
+          on your own computer. The result lands in the course as a draft note
+          for you to review.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -425,10 +473,12 @@ function JobForm({
             </div>
           )}
 
-          {tool === "ocr" && (
+          {(tool === "ocr" || tool === "ocr_pdf" || tool === "transcribe") && (
             <fieldset className="grid gap-2">
               <legend className="text-sm font-medium">
-                Languages in the picture
+                {tool === "transcribe"
+                  ? "Languages in the recording"
+                  : "Languages in the picture"}
               </legend>
               <label className="flex items-center gap-2 text-sm">
                 <input

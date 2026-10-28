@@ -207,6 +207,38 @@ export function jobResultNaming(
   };
 }
 
+/**
+ * Which files each tool can work on (spec section 7 table). Used by the job
+ * form to hide ineligible files and re-checked by the server action. The
+ * tool names are the job form's choices; "ocr" is a photo, "ocr_pdf" is a
+ * scanned PDF.
+ */
+export function assetEligibleForTool(
+  tool: string,
+  asset: { kind: string; mime: string },
+): boolean {
+  switch (tool) {
+    case "ocr":
+      return asset.kind === "image";
+    case "ocr_pdf":
+      return asset.kind === "pdf";
+    case "word_to_markdown":
+      return asset.mime === DOCX_MIME;
+    case "pdf_merge":
+    case "pdf_split":
+      return asset.kind === "pdf";
+    case "office_to_pdf":
+      return asset.mime === DOCX_MIME || asset.mime === PPTX_MIME;
+    case "video_to_audio":
+    case "compress_video":
+      return asset.kind === "video";
+    case "transcribe":
+      return asset.kind === "audio" || asset.kind === "video";
+    default:
+      return false;
+  }
+}
+
 export const createJobSchema = z.object({
   course_id: z.uuid(),
   type: z.enum(JOB_TYPES),

@@ -1,4 +1,5 @@
 import { requireSession } from "@/lib/dal";
+import { WORKER_ONLINE_WINDOW_MS } from "@/lib/jobs";
 import { createClient } from "@/lib/supabase/server";
 import {
   JobsClient,
@@ -9,12 +10,18 @@ import {
 
 /**
  * Jobs screen (spec section 7): the leader starts light processing jobs and
- * watches them run. The heavy lifting happens in the leader's own browser
- * (see job-runner.tsx) — the server only stores the queue and the results.
+ * watches them run. Light work happens in the leader's own browser (see
+ * job-runner.tsx); heavy work waits for the Home Worker, whose heartbeat is
+ * shown as an online/offline badge (spec section 7 rule 5).
  */
 export const instant = false;
 
 export const metadata = { title: "Jobs" };
+
+/** A worker is online if it checked in within the window (spec rule 5). */
+function isOnline(lastSeenAt: string): boolean {
+  return Date.now() - new Date(lastSeenAt).getTime() < WORKER_ONLINE_WINDOW_MS;
+}
 
 export default async function JobsPage() {
   const session = await requireSession();
@@ -69,6 +76,14 @@ export default async function JobsPage() {
     input_asset_id: j.input_asset_id,
   }));
 
+  // Worker heartbeat (spec section 7 rule 5): RLS gives admins the rows and
+  // everyone else none, so a non-admin leader gets no badge at all rather
+  // than a misleading "offline".
+  const { data: heartbeats } = await supabase
+    .from("worker_heartbeats")
+    .select("id, last_seen_at");
+  const workerOnline = (heartbeats ?? []).some((h) => isOnline(h.last_seen_at));
+
   return (
     <JobsClient
       courses={courseList}
@@ -76,6 +91,9 @@ export default async function JobsPage() {
       initialJobs={jobList}
       userId={session.userId}
       isAdmin={session.profile.global_role === "admin"}
+      workerOnline={
+        session.profile.global_role === "admin" ? workerOnline : null
+      }
     />
   );
 }

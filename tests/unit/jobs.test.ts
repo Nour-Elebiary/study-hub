@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assetEligibleForTool,
   createJobSchema,
   jobParamsSchema,
   jobResultNaming,
@@ -266,6 +267,61 @@ describe("worker API schemas", () => {
 
   it("rejects a report without a job id", () => {
     expect(workerCompleteSchema.safeParse({ ok: true }).success).toBe(false);
+  });
+});
+
+describe("assetEligibleForTool", () => {
+  const DOCX =
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const PPTX =
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
+  it("matches the spec's runner table", () => {
+    expect(
+      assetEligibleForTool("ocr", { kind: "image", mime: "image/jpeg" }),
+    ).toBe(true);
+    expect(
+      assetEligibleForTool("ocr", { kind: "pdf", mime: "application/pdf" }),
+    ).toBe(false);
+    expect(
+      assetEligibleForTool("ocr_pdf", { kind: "pdf", mime: "application/pdf" }),
+    ).toBe(true);
+    expect(
+      assetEligibleForTool("word_to_markdown", {
+        kind: "document",
+        mime: DOCX,
+      }),
+    ).toBe(true);
+    expect(
+      assetEligibleForTool("office_to_pdf", { kind: "document", mime: PPTX }),
+    ).toBe(true);
+    expect(
+      assetEligibleForTool("video_to_audio", {
+        kind: "video",
+        mime: "video/mp4",
+      }),
+    ).toBe(true);
+    expect(
+      assetEligibleForTool("compress_video", {
+        kind: "audio",
+        mime: "audio/mpeg",
+      }),
+    ).toBe(false);
+    expect(
+      assetEligibleForTool("transcribe", { kind: "audio", mime: "audio/mpeg" }),
+    ).toBe(true);
+    expect(
+      assetEligibleForTool("transcribe", { kind: "video", mime: "video/mp4" }),
+    ).toBe(true);
+    expect(
+      assetEligibleForTool("pdf_merge", {
+        kind: "pdf",
+        mime: "application/pdf",
+      }),
+    ).toBe(true);
+    expect(
+      assetEligibleForTool("nope", { kind: "pdf", mime: "application/pdf" }),
+    ).toBe(false);
   });
 });
 
