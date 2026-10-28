@@ -4,16 +4,15 @@ import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
 import { writeAudit } from "@/lib/audit";
 import { requireSession } from "@/lib/dal";
+import { fileJobResult } from "@/lib/job-results";
 import {
   completeJobSchema,
-  CONVERT_TOOL_LABELS,
   createJobSchema,
   DOCX_MIME,
-  JOB_TYPE_LABELS,
   jobIdSchema,
-  type JobParams,
+  PPTX_MIME,
+  runnerForJob,
 } from "@/lib/jobs";
-import { slugify } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
 
 export type JobActionState = { error: string } | { ok: true } | null;
@@ -43,7 +42,6 @@ export async function createJobAction(
   const parsed = createJobSchema.safeParse({
     course_id: String(formData.get("course_id") ?? ""),
     type: String(formData.get("type") ?? ""),
-    runner: "browser",
     input_asset_id: String(formData.get("input_asset_id") ?? ""),
     params: rawParams,
   });
@@ -55,60 +53,90 @@ export async function createJobAction(
 
   const { data: asset } = await supabase
     .from("assets")
-    .select("id, course_id, kind, mime, title")
+    .select("id, course_id, kind, mime, storage")
     .eq("id", parsed.data.input_asset_id)
     .maybeSingle();
   if (!asset || asset.course_id !== parsed.data.course_id) notFound();
 
-  // Type-specific eligibility and params (spec section 7 table).
-  const params: JobParams = parsed.data.params;
+  // Type-specific eligibility (spec section 7 table). The runner is derived
+  // from the job, never chosen by the leader: light work in the browser,
+  // heavy work on the Home Worker.
+  const params = parsed.data.params;
+  const runner = runnerForJob(parsed.data.type, params);
   if (params.type !== parsed.data.type) {
     return firstError("The job options do not match the job type.");
   }
-  if (parsed.data.type === "ocr") {
-    if (asset.kind !== "image") {
+  if (params.type === "ocr") {
+    if (params.source === "pdf_scan") {
+      if (asset.kind !== "pdf") {
+        return firstError("Scanned-PDF OCR works on PDF files.");
+      }
+    } else if (asset.kind !== "image") {
       return firstError("OCR works on image files. Pick a photo or scan.");
     }
-  } else if (
-    parsed.data.type === "convert" &&
-    params.type === "convert" &&
-    params.tool === "word_to_markdown"
-  ) {
-    if (asset.mime !== DOCX_MIME) {
-      return firstError("Word to Markdown works on .docx files.");
-    }
-  } else if (
-    parsed.data.type === "convert" &&
-    params.type === "convert" &&
-    (params.tool === "pdf_merge" || params.tool === "pdf_split")
-  ) {
-    if (asset.kind !== "pdf") {
-      return firstError("PDF tools work on PDF files.");
-    }
-    if (params.tool === "pdf_merge") {
-      if (!params.asset_ids || params.asset_ids.length < 2) {
-        return firstError("Pick at least two PDFs to merge.");
+  } else if (params.type === "convert") {
+    switch (params.tool) {
+      case "word_to_markdown":
+        if (asset.mime !== DOCX_MIME) {
+          return firstError("Word to Markdown works on .docx files.");
+        }
+        break;
+      case "pdf_merge": {
+        if (asset.kind !== "pdf") {
+          return firstError("PDF tools work on PDF files.");
+        }
+        if (!params.asset_ids || params.asset_ids.length < 2) {
+          return firstError("Pick at least two PDFs to merge.");
+        }
+        const { data: inputs } = await supabase
+          .from("assets")
+          .select("id, course_id, kind")
+          .in("id", params.asset_ids);
+        if (
+          !inputs ||
+          inputs.length !== params.asset_ids.length ||
+          inputs.some(
+            (a) => a.course_id !== parsed.data.course_id || a.kind !== "pdf",
+          )
+        ) {
+          return firstError("All PDFs to merge must be in this course.");
+        }
+        break;
       }
-      const { data: inputs } = await supabase
-        .from("assets")
-        .select("id, course_id, kind")
-        .in("id", params.asset_ids);
-      if (
-        !inputs ||
-        inputs.length !== params.asset_ids.length ||
-        inputs.some(
-          (a) => a.course_id !== parsed.data.course_id || a.kind !== "pdf",
-        )
-      ) {
-        return firstError("All PDFs to merge must be in this course.");
-      }
+      case "pdf_split":
+        if (asset.kind !== "pdf") {
+          return firstError("PDF tools work on PDF files.");
+        }
+        if (!params.pages) {
+          return firstError("Say which pages to keep, like 1-3,5.");
+        }
+        break;
+      case "office_to_pdf":
+        if (asset.mime !== DOCX_MIME && asset.mime !== PPTX_MIME) {
+          return firstError("This tool works on .docx and .pptx files.");
+        }
+        break;
+      case "video_to_audio":
+      case "compress_video":
+        if (asset.kind !== "video") {
+          return firstError("Video tools work on video files.");
+        }
+        break;
     }
-    if (params.tool === "pdf_split" && !params.pages) {
-      return firstError("Say which pages to keep, like 1-3,5.");
+  } else if (params.type === "transcribe") {
+    if (asset.kind !== "audio" && asset.kind !== "video") {
+      return firstError("Transcription works on audio and video files.");
     }
   } else {
-    // transcribe and ai_task arrive with the Home Worker (M6) and Gemini (M7).
+    // ai_task arrives with the AI assistant (M7).
     return firstError("That job type is not available yet.");
+  }
+  // Heavy jobs run on the leader's own PC, which fetches the file through a
+  // signed URL — a Drive link has nothing to hand over.
+  if (runner === "worker" && asset.storage !== "supabase") {
+    return firstError(
+      "This job needs the file stored in Study Hub, not a Drive link.",
+    );
   }
 
   const { data: job, error } = await supabase
@@ -116,7 +144,7 @@ export async function createJobAction(
     .insert({
       course_id: parsed.data.course_id,
       type: parsed.data.type,
-      runner: parsed.data.runner,
+      runner,
       input_asset_id: parsed.data.input_asset_id,
       params,
     })
@@ -284,142 +312,22 @@ export async function completeJobAction(
     return firstError("The result file must be saved in the course's folder.");
   }
 
-  const { data: source } = await supabase
-    .from("assets")
-    .select("id, title, node_id")
-    .eq("id", job.input_asset_id)
-    .maybeSingle();
-  if (!source) notFound();
-
-  // The draft note sits next to the source file when there is one.
-  let area = "official_materials";
-  let parentId: string | null = null;
-  if (source.node_id) {
-    const { data: sourceNode } = await supabase
-      .from("nodes")
-      .select("area, parent_id, deleted_at")
-      .eq("id", source.node_id)
-      .maybeSingle();
-    if (sourceNode && !sourceNode.deleted_at) {
-      area = sourceNode.area;
-      parentId = sourceNode.parent_id;
-    }
-  }
-
-  const params = job.params as JobParams;
-  const sourceTitle = source.title || "the source file";
-  // Convert jobs carry a tool in params; the label comes from the tool, not
-  // the generic "convert" type label.
-  const tool = params.type === "convert" ? params.tool : undefined;
-  const label =
-    tool !== undefined
-      ? CONVERT_TOOL_LABELS[tool]
-      : (JOB_TYPE_LABELS[job.type as keyof typeof JOB_TYPE_LABELS] ?? job.type);
-
-  let title: string;
-  let body: string;
-  let resultTitle: string;
-  if (tool === "pdf_merge" || tool === "pdf_split") {
-    title =
-      tool === "pdf_merge"
-        ? `Merged PDF — ${sourceTitle}`
-        : `Split PDF — ${sourceTitle}`;
-    body =
-      tool === "pdf_merge"
-        ? `A combined PDF made from ${
-            params.type === "convert" ? (params.asset_ids?.length ?? 0) : 0
-          } files. Review it, then publish or delete this note.`
-        : `Pages ${
-            params.type === "convert" ? (params.pages ?? "") : ""
-          } of ${sourceTitle}, saved as a new PDF. Review it, then publish or delete this note.`;
-    resultTitle =
-      tool === "pdf_merge"
-        ? `${sourceTitle} (merged).pdf`
-        : `${sourceTitle} (split).pdf`;
-  } else {
-    const text = parsed.data.text ?? "";
-    title = `${label} — ${sourceTitle}`;
-    body = `*Source file: ${sourceTitle}.*\n\n${text}`;
-    resultTitle = `${sourceTitle} (text).md`;
-  }
-
-  let sortOrder = 0;
-  if (parentId) {
-    const { data: siblings } = await supabase
-      .from("nodes")
-      .select("sort_order")
-      .eq("parent_id", parentId)
-      .is("deleted_at", null)
-      .order("sort_order", { ascending: false })
-      .limit(1);
-    sortOrder = (siblings?.[0]?.sort_order ?? -1) + 1;
-  }
-
-  const { data: note, error: noteError } = await supabase
-    .from("nodes")
-    .insert({
-      course_id: job.course_id,
-      parent_id: parentId,
-      area,
-      kind: "note",
-      title,
-      slug: slugify(title),
-      sort_order: sortOrder,
-      draft_body_md: body,
-    })
-    .select("id")
-    .single();
-  if (noteError || !note) {
-    return firstError("Could not create the draft note. Try again.");
-  }
-
-  // The auto-text tag marks machine-made drafts for human review
-  // (spec section 7 rule 2).
-  const { data: existingTag } = await supabase
-    .from("tags")
-    .select("id")
-    .eq("name", "auto-text")
-    .maybeSingle();
-  let tagId = existingTag?.id;
-  if (!tagId) {
-    const { data: newTag } = await supabase
-      .from("tags")
-      .insert({ name: "auto-text" })
-      .select("id")
-      .single();
-    tagId = newTag?.id;
-  }
-  if (tagId) {
-    await supabase
-      .from("node_tags")
-      .insert({ node_id: note.id, tag_id: tagId });
-  }
-
-  const kind = parsed.data.mime === "application/pdf" ? "pdf" : "document";
-  const { data: resultAsset, error: assetError } = await supabase
-    .from("assets")
-    .insert({
-      course_id: job.course_id,
-      node_id: note.id,
-      kind,
-      storage: "supabase",
-      path_or_url: parsed.data.result_path,
-      title: resultTitle,
-      mime: parsed.data.mime,
-      size_bytes: parsed.data.size_bytes,
-    })
-    .select("id")
-    .single();
-  if (assetError || !resultAsset) {
-    return firstError("Could not register the result file. Try again.");
+  const filed = await fileJobResult(supabase, job, {
+    path: parsed.data.result_path,
+    mime: parsed.data.mime,
+    sizeBytes: parsed.data.size_bytes,
+    text: parsed.data.text,
+  });
+  if (!filed.ok) {
+    return firstError(filed.error);
   }
 
   const { error: jobError } = await supabase
     .from("jobs")
     .update({
       status: "done",
-      result_asset_id: resultAsset.id,
-      result_node_id: note.id,
+      result_asset_id: filed.assetId,
+      result_node_id: filed.noteId,
       finished_at: new Date().toISOString(),
       error: null,
     })
@@ -436,8 +344,8 @@ export async function completeJobAction(
     meta: {
       course_id: job.course_id,
       type: job.type,
-      note_id: note.id,
-      result_asset_id: resultAsset.id,
+      note_id: filed.noteId,
+      result_asset_id: filed.assetId,
     },
   });
 

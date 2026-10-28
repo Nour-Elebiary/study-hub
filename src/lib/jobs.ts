@@ -54,6 +54,9 @@ export const convertTools = [
   "word_to_markdown",
   "pdf_merge",
   "pdf_split",
+  "office_to_pdf",
+  "video_to_audio",
+  "compress_video",
 ] as const;
 export type ConvertTool = (typeof convertTools)[number];
 
@@ -61,12 +64,24 @@ export const CONVERT_TOOL_LABELS: Record<ConvertTool, string> = {
   word_to_markdown: "Word to Markdown",
   pdf_merge: "Merge PDFs",
   pdf_split: "Split a PDF",
+  office_to_pdf: "Word or PowerPoint to PDF",
+  video_to_audio: "Video to audio (MP3)",
+  compress_video: "Compress a video",
 };
+
+/** Where OCR reads from: a photo (browser) or a scanned PDF (Home Worker). */
+export const ocrSources = ["image", "pdf_scan"] as const;
+export type OcrSource = (typeof ocrSources)[number];
+
+/** The .pptx mime (office_to_pdf eligibility). */
+export const PPTX_MIME =
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
 export const jobParamsSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("ocr"),
     languages: ocrLanguagesSchema,
+    source: z.enum(ocrSources).default("image"),
   }),
   z.object({
     type: z.literal("convert"),
@@ -79,15 +94,122 @@ export const jobParamsSchema = z.discriminatedUnion("type", [
       .regex(/^\d+(-\d+)?(,\d+(-\d+)?)*$/, "Use page numbers like 1-3,5.")
       .optional(),
   }),
-  // transcribe and ai_task arrive with M6/M7; their params are defined then.
+  z.object({
+    type: z.literal("transcribe"),
+    languages: ocrLanguagesSchema,
+  }),
+  // ai_task arrives with M7; its params are defined then.
 ]);
 
 export type JobParams = z.infer<typeof jobParamsSchema>;
 
+/**
+ * Which runner executes a job (spec section 7 table): light work in the
+ * leader's browser, heavy work on the Home Worker. The server derives this
+ * from the type and params — the leader never picks it by hand.
+ */
+export function runnerForJob(type: JobType, params: JobParams): JobRunner {
+  if (type === "ocr") {
+    return params.type === "ocr" && params.source === "pdf_scan"
+      ? "worker"
+      : "browser";
+  }
+  if (type === "transcribe") return "worker";
+  if (type === "ai_task") return "gemini";
+  // convert
+  if (params.type !== "convert") return "browser";
+  return params.tool === "word_to_markdown" ||
+    params.tool === "pdf_merge" ||
+    params.tool === "pdf_split"
+    ? "browser"
+    : "worker";
+}
+
+/**
+ * The note title, note body and result-file name for a finished job (spec
+ * section 7 rule 2). Shared by the browser completion action and the worker
+ * complete endpoint so both file results identically. `text` is the
+ * extracted text for text jobs; binary jobs get a description body.
+ */
+export function jobResultNaming(
+  type: JobType,
+  params: JobParams,
+  sourceTitle: string,
+  text?: string,
+): { title: string; body: string; resultTitle: string; binary: boolean } {
+  if (params.type === "convert") {
+    const tool = params.tool;
+    if (tool === "pdf_merge" || tool === "pdf_split") {
+      return {
+        title:
+          tool === "pdf_merge"
+            ? `Merged PDF — ${sourceTitle}`
+            : `Split PDF — ${sourceTitle}`,
+        body:
+          tool === "pdf_merge"
+            ? `A combined PDF made from ${
+                params.asset_ids?.length ?? 0
+              } files. Review it, then publish or delete this note.`
+            : `Pages ${params.pages ?? ""} of ${sourceTitle}, saved as a new PDF. Review it, then publish or delete this note.`,
+        resultTitle:
+          tool === "pdf_merge"
+            ? `${sourceTitle} (merged).pdf`
+            : `${sourceTitle} (split).pdf`,
+        binary: true,
+      };
+    }
+    if (tool === "office_to_pdf") {
+      return {
+        title: `PDF copy — ${sourceTitle}`,
+        body: `*Source file: ${sourceTitle}.* A PDF copy made from the document. Review it, then publish or delete this note.`,
+        resultTitle: `${sourceTitle} (copy).pdf`,
+        binary: true,
+      };
+    }
+    if (tool === "video_to_audio") {
+      return {
+        title: `Audio — ${sourceTitle}`,
+        body: `*Source file: ${sourceTitle}.* The sound from the video, saved as an MP3. Review it, then publish or delete this note.`,
+        resultTitle: `${sourceTitle} (audio).mp3`,
+        binary: true,
+      };
+    }
+    if (tool === "compress_video") {
+      return {
+        title: `Compressed video — ${sourceTitle}`,
+        body: `*Source file: ${sourceTitle}.* A smaller copy of the video. Review it, then publish or delete this note.`,
+        resultTitle: `${sourceTitle} (small).mp4`,
+        binary: true,
+      };
+    }
+    // word_to_markdown: a text result.
+    return {
+      title: `${CONVERT_TOOL_LABELS[tool]} — ${sourceTitle}`,
+      body: `*Source file: ${sourceTitle}.*\n\n${text ?? ""}`,
+      resultTitle: `${sourceTitle} (text).md`,
+      binary: false,
+    };
+  }
+  if (params.type === "ocr" && params.source === "pdf_scan") {
+    return {
+      title: `Scanned PDF (searchable) — ${sourceTitle}`,
+      body: `*Source file: ${sourceTitle}.* A searchable copy of the scanned PDF with the text added as an invisible layer. Review it, then publish or delete this note.`,
+      resultTitle: `${sourceTitle} (searchable).pdf`,
+      binary: true,
+    };
+  }
+  // Text jobs: image OCR and transcription.
+  return {
+    title: `${JOB_TYPE_LABELS[type]} — ${sourceTitle}`,
+    body: `*Source file: ${sourceTitle}.*\n\n${text ?? ""}`,
+    resultTitle: `${sourceTitle} (text).md`,
+    binary: false,
+  };
+}
+
 export const createJobSchema = z.object({
   course_id: z.uuid(),
   type: z.enum(JOB_TYPES),
-  runner: z.enum(JOB_RUNNERS),
   input_asset_id: z.uuid(),
   params: jobParamsSchema,
 });
@@ -111,6 +233,32 @@ export const completeJobSchema = z.object({
 });
 
 export type CompleteJobValues = z.infer<typeof completeJobSchema>;
+
+/**
+ * The worker API bodies (spec section 7 rule 5). The worker posts these to
+ * /api/worker/claim and /api/worker/complete with its token.
+ */
+export const workerClaimSchema = z.object({
+  worker_name: z.string().min(1).max(40),
+});
+
+export const workerCompleteSchema = z.object({
+  job_id: z.uuid(),
+  ok: z.boolean(),
+  error: z.string().max(500).optional(),
+  result_path: z.string().min(1).optional(),
+  mime: z.string().min(3).max(100).optional(),
+  size_bytes: z.number().int().positive().optional(),
+  text: z.string().max(500_000).optional(),
+});
+
+export type WorkerCompleteValues = z.infer<typeof workerCompleteSchema>;
+
+/**
+ * A worker counts as online if it claimed (or checked in) within this
+ * window — three missed 10-second heartbeats.
+ */
+export const WORKER_ONLINE_WINDOW_MS = 90_000;
 
 /** Human labels for the job screen. */
 export const JOB_TYPE_LABELS: Record<JobType, string> = {
