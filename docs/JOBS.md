@@ -9,12 +9,12 @@ never changed — every job creates something new.
 
 ## What you can do
 
-| Job | What it does | Works on |
-| --- | --- | --- |
+| Job                           | What it does                                                     | Works on                  |
+| ----------------------------- | ---------------------------------------------------------------- | ------------------------- |
 | Read text from an image (OCR) | Copies the text out of a photo or scan, in English and/or Arabic | Photos and scans (images) |
-| Word to Markdown | Turns a Word document into editable note text | `.docx` files |
-| Merge PDFs | Combines two or more PDFs into one, in the order you pick | PDF files |
-| Split a PDF | Copies the pages you choose into a new, smaller PDF | PDF files |
+| Word to Markdown              | Turns a Word document into editable note text                    | `.docx` files             |
+| Merge PDFs                    | Combines two or more PDFs into one, in the order you pick        | PDF files                 |
+| Split a PDF                   | Copies the pages you choose into a new, smaller PDF              | PDF files                 |
 
 ## How to start a job
 
