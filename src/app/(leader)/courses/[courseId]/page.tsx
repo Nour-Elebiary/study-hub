@@ -92,6 +92,19 @@ export default async function CoursePage({
         myAreas={membership?.areas ?? []}
         isAdmin={session.profile.global_role === "admin"}
       />
+
+      <p className="text-sm">
+        <Link
+          href={`/courses/${courseId}/map`}
+          className="underline underline-offset-4"
+        >
+          View the course map 🗺️
+        </Link>
+        <span className="text-muted-foreground">
+          {" "}
+          — the content tree drawn as a mind-map.
+        </span>
+      </p>
     </div>
   );
 }
