@@ -74,6 +74,27 @@ jobs:
       - run: npm run test:e2e
         env:
           E2E_PROD: "1"
+      - name: Lighthouse mobile performance (Home and Note >= 90)
+        run: |
+          # The student pages need the join cookie; CI mints one with the
+          # same placeholder secret from .env.example (local/CI only).
+          export $(grep '^JOIN_COOKIE_SECRET=' .env.local)
+          COOKIE=$(node -e "const c=require('node:crypto');const b=Buffer.from(JSON.stringify({v:1,iat:Date.now(),scope:{all:true}})).toString('base64url');console.log(b+'.'+c.createHmac('sha256',process.env.JOIN_COOKIE_SECRET).update(b).digest('base64url'))")
+          npm run start &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:3000/s/join > /dev/null && break; sleep 1; done
+          run_lh() {
+            url="$1"; out="$2"
+            for attempt in 1 2 3; do
+              npx --yes lighthouse@12 "$url" --only-categories=performance \
+                --output=json --output-path="$out" --quiet \
+                --chrome-flags="--headless" \
+                --extra-headers="{\"Cookie\":\"sh_student=$COOKIE\"}" || continue
+              node scripts/check-lighthouse.mjs "$out" 90 && return 0
+            done
+            return 1
+          }
+          run_lh "http://127.0.0.1:3000/s" lh-home.json
+          run_lh "http://127.0.0.1:3000/s/notes/eeeeeeee-0000-eeee-0000-000000000003" lh-note.json
 
   security:
     name: Secret scan + dependency audit
