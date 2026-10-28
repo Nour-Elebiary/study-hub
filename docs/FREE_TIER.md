@@ -97,3 +97,20 @@ with the date and the official source before the code that uses it is merged.
 | 2026-10-28 | mammoth (M5 Word to HTML in the browser)                                                                                        | BSD-2-Clause | Open-source .docx reader that runs in the browser; no hosted service                                                                       | https://github.com/mwilliamson/mammoth.js  |
 | 2026-10-28 | turndown (+ @types/turndown) (M5 HTML to Markdown for the note body)                                                            | MIT          | Open-source HTML-to-Markdown converter; no hosted service                                                                                  | https://github.com/domchristie/turndown    |
 | 2026-10-28 | pdf-lib (M5 merge and split of PDFs in the browser)                                                                             | MIT          | Open-source PDF toolkit that runs in the browser; no hosted service                                                                        | https://github.com/Hopding/pdf-lib         |
+
+## Home Worker (M6) — Python packages and desktop tools
+
+The worker runs on a leader's own Windows PC, not on any hosted service, so
+nothing here adds hosting cost. Its Python packages are installed into a
+private environment by `worker/install.ps1`; the desktop tools come from
+winget.
+
+| Date       | Dependency                                                    | License                         | Why it is free for this use                                                                                             | Source                                                    |
+| ---------- | ------------------------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 2026-10-28 | requests (worker HTTP calls)                                  | Apache-2.0                      | Open-source Python HTTP library; no hosted service                                                                      | https://github.com/psf/requests                           |
+| 2026-10-28 | faster-whisper (worker audio-to-text)                         | MIT                             | Open-source Whisper implementation that runs locally on the worker PC using CTranslate2; no cloud service, no paid plan | https://github.com/SYSTRAN/faster-whisper                 |
+| 2026-10-28 | ocrmypdf (worker scanned-PDF OCR)                             | MPL-2.0                         | Open-source tool that runs locally with Tesseract; no hosted service                                                    | https://github.com/ocrmypdf/OCRmyPDF                      |
+| 2026-10-28 | FFmpeg (desktop tool: video to audio, compress, audio chunks) | LGPL-2.1+ (Gyan builds are GPL) | Free open-source media toolkit, installed on the leader's own PC via winget; nothing hosted                             | https://ffmpeg.org / https://github.com/GyanD/codexffmpeg |
+| 2026-10-28 | Tesseract OCR + Arabic traineddata (desktop tool)             | Apache-2.0                      | Free open-source OCR engine; the Arabic data file is from the free tessdata_fast repository                             | https://github.com/tesseract-ocr/tesseract                |
+| 2026-10-28 | Ghostscript (desktop tool, needed by ocrmypdf)                | AGPL-3.0                        | Free for this use: it runs locally inside the school's own worker PC and is not distributed with a commercial product   | https://ghostscript.com                                   |
+| 2026-10-28 | LibreOffice (desktop tool: Word/PowerPoint to PDF)            | MPL-2.0                         | Free open-source office suite, installed on the leader's own PC via winget; headless conversion only                    | https://www.libreoffice.org                               |
