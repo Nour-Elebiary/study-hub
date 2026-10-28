@@ -3,6 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ContentTree } from "@/app/(leader)/courses/[courseId]/content-tree";
 import { VisitMarker } from "@/app/(leader)/changed-since-visit";
+import {
+  SuggestionList,
+  type SuggestionItem,
+} from "@/app/(leader)/courses/[courseId]/suggestions/suggestion-list";
 import { Badge } from "@/components/ui/badge";
 import { getMembership } from "@/lib/course-access";
 import { requireSession } from "@/lib/dal";
@@ -64,6 +68,27 @@ export default async function CoursePage({
     updatedAt: n.updated_at,
   }));
 
+  // Open suggestions ("open questions", spec section 10 rule 4). The read
+  // goes through the leader's own client, so RLS already limits it to notes
+  // they can see; note titles come from the rows fetched above.
+  const noteIds = nodes.map((n) => n.id);
+  const { data: suggestionRows } = noteIds.length
+    ? await supabase
+        .from("suggestions")
+        .select("id, note_id, text, created_at")
+        .eq("resolved", false)
+        .in("note_id", noteIds)
+        .order("created_at")
+    : { data: [] };
+  const titles = new Map(nodes.map((n) => [n.id, n.title]));
+  const suggestions: SuggestionItem[] = (suggestionRows ?? []).map((s) => ({
+    id: s.id,
+    noteId: s.note_id,
+    noteTitle: titles.get(s.note_id) ?? "A note in this course",
+    text: s.text,
+    createdAt: s.created_at,
+  }));
+
   return (
     <div className="grid gap-4">
       <VisitMarker courseId={courseId} />
@@ -98,6 +123,8 @@ export default async function CoursePage({
         myAreas={membership?.areas ?? []}
         isAdmin={session.profile.global_role === "admin"}
       />
+
+      <SuggestionList suggestions={suggestions} />
 
       <p className="text-sm">
         <Link
