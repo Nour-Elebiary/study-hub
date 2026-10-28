@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -13,21 +14,26 @@ export default async function CoursesPage() {
   const supabase = await createClient();
   const { data: courses } = await supabase
     .from("courses")
-    .select("code, title, semester")
+    .select("id, code, title, semester")
     .order("code");
 
   return (
     <div className="grid gap-4">
       <h1 className="text-2xl font-bold">Courses</h1>
       <p className="text-muted-foreground text-sm">
-        Courses you are a member of. The content tree arrives in milestone M2.
+        Open a course to see its content tree — areas, sections and notes.
       </p>
       {courses && courses.length > 0 ? (
         <div className="grid gap-3">
           {courses.map((course) => (
-            <Card key={course.code}>
+            <Card key={course.id}>
               <CardHeader>
-                <CardTitle className="text-base">{course.title}</CardTitle>
+                <Link
+                  href={`/courses/${course.id}`}
+                  className="hover:underline"
+                >
+                  <CardTitle className="text-base">{course.title}</CardTitle>
+                </Link>
                 <CardDescription>
                   {course.semester ? `${course.semester} · ` : ""}
                   {course.code}

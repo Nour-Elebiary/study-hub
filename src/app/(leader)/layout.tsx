@@ -65,6 +65,14 @@ export default async function LeaderLayout({ children }: LayoutProps<"/">) {
               Courses
             </Link>
           </li>
+          <li className="grow">
+            <Link
+              href="/search"
+              className="flex h-14 items-center justify-center text-sm font-medium"
+            >
+              Search
+            </Link>
+          </li>
         </ul>
       </nav>
     </div>
