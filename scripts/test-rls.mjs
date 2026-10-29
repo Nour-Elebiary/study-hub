@@ -64,6 +64,12 @@ try {
       await client.query(sql);
     } catch (err) {
       console.error(`FAIL ${file}\n${err.message}`);
+      // Postgres reports the failing statement's position inside the
+      // multi-statement file; print everything that narrows the line down.
+      if (err.position) console.error(`statement position: ${err.position}`);
+      if (err.where) console.error(`context: ${err.where}`);
+      if (err.detail) console.error(`detail: ${err.detail}`);
+      if (err.hint) console.error(`hint: ${err.hint}`);
       process.exit(1);
     }
     console.log(`PASS ${file}`);

@@ -45,6 +45,12 @@ select tests.assert_true (
 );
 
 --- another member cannot delete Leader A's live lock (restore it first) -------
+-- Back to the seeded admin for the fixture below: the claims above are still
+-- Leader A's, and the members policy only lets owners/admins manage
+-- membership rows (correctly rejecting an editor's insert — see test 07).
+set local request.jwt.claims =
+  '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}';
+
 update public.locks set expires_at = now () + interval '2 minutes'
 where node_id = 'eeeeeeee-0000-eeee-0000-000000000002';
 
