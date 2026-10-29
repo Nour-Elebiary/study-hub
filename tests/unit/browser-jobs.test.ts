@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { convertExcelToCsv } from "@/lib/browser-jobs/convert";
 import { parsePageSelection } from "@/lib/browser-jobs/pdf";
 
 describe("parsePageSelection", () => {
@@ -22,5 +23,57 @@ describe("parsePageSelection", () => {
     expect(parsePageSelection("1;2", 10)).toBeNull();
     expect(parsePageSelection("3-1", 10)).toBeNull();
     expect(parsePageSelection("", 10)).toBeNull();
+  });
+});
+
+describe("convertExcelToCsv", () => {
+  /** Builds a real .xlsx in memory so the test exercises the actual reader. */
+  async function makeWorkbook(
+    sheets: { name: string; rows: (string | number)[][] }[],
+  ): Promise<ArrayBuffer> {
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.utils.book_new();
+    for (const s of sheets) {
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.aoa_to_sheet(s.rows),
+        s.name,
+      );
+    }
+    const out = XLSX.write(workbook, {
+      type: "buffer",
+      bookType: "xlsx",
+    }) as Buffer;
+    const bytes = new Uint8Array(out);
+    return bytes.buffer.slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength,
+    ) as ArrayBuffer;
+  }
+
+  it("turns the first sheet into CSV text", async () => {
+    const csv = await convertExcelToCsv(
+      await makeWorkbook([
+        {
+          name: "Grades",
+          rows: [
+            ["Name", "Grade"],
+            ["Lina", 95],
+          ],
+        },
+      ]),
+    );
+    expect(csv).toBe("Name,Grade\nLina,95");
+  });
+
+  it("uses only the first sheet when a workbook has several", async () => {
+    const csv = await convertExcelToCsv(
+      await makeWorkbook([
+        { name: "First", rows: [["a"]] },
+        { name: "Second", rows: [["b"]] },
+      ]),
+    );
+    expect(csv).toBe("a");
+    expect(csv).not.toContain("b");
   });
 });

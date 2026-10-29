@@ -45,6 +45,10 @@ export const OCR_LANGUAGE_LABELS: Record<OcrLanguage, string> = {
 export const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
+/** The .xlsx mime (Excel to CSV eligibility, spec section 7 table). */
+export const XLSX_MIME =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
 /**
  * Params per job type, validated before the row is written. The jobs.type
  * enum (spec section 5) has only four values, so the PDF tools are
@@ -52,6 +56,7 @@ export const DOCX_MIME =
  */
 export const convertTools = [
   "word_to_markdown",
+  "excel_to_csv",
   "pdf_merge",
   "pdf_split",
   "office_to_pdf",
@@ -62,6 +67,7 @@ export type ConvertTool = (typeof convertTools)[number];
 
 export const CONVERT_TOOL_LABELS: Record<ConvertTool, string> = {
   word_to_markdown: "Word to Markdown",
+  excel_to_csv: "Excel to CSV",
   pdf_merge: "Merge PDFs",
   pdf_split: "Split a PDF",
   office_to_pdf: "Word or PowerPoint to PDF",
@@ -119,6 +125,7 @@ export function runnerForJob(type: JobType, params: JobParams): JobRunner {
   // convert
   if (params.type !== "convert") return "browser";
   return params.tool === "word_to_markdown" ||
+    params.tool === "excel_to_csv" ||
     params.tool === "pdf_merge" ||
     params.tool === "pdf_split"
     ? "browser"
@@ -182,6 +189,14 @@ export function jobResultNaming(
         binary: true,
       };
     }
+    if (tool === "excel_to_csv") {
+      return {
+        title: `${CONVERT_TOOL_LABELS[tool]} — ${sourceTitle}`,
+        body: `*Source file: ${sourceTitle}.* The first sheet of the spreadsheet, saved as CSV. Review it, then publish or delete this note.`,
+        resultTitle: `${sourceTitle} (table).csv`,
+        binary: false,
+      };
+    }
     // word_to_markdown: a text result.
     return {
       title: `${CONVERT_TOOL_LABELS[tool]} — ${sourceTitle}`,
@@ -224,6 +239,8 @@ export function assetEligibleForTool(
       return asset.kind === "pdf";
     case "word_to_markdown":
       return asset.mime === DOCX_MIME;
+    case "excel_to_csv":
+      return asset.mime === XLSX_MIME;
     case "pdf_merge":
     case "pdf_split":
       return asset.kind === "pdf";

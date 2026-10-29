@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { convertWordToMarkdown } from "@/lib/browser-jobs/convert";
+import {
+  convertExcelToCsv,
+  convertWordToMarkdown,
+} from "@/lib/browser-jobs/convert";
 import { runOcr } from "@/lib/browser-jobs/ocr";
 import { mergePdfs, splitPdf } from "@/lib/browser-jobs/pdf";
 import { randomStoragePath } from "@/lib/file-allowlist";
@@ -99,6 +102,10 @@ async function runJob(supabase: Supabase, job: QueuedJob): Promise<void> {
     text = await convertWordToMarkdown(await blob.arrayBuffer());
     resultMime = "text/plain";
     resultTitle = `${sourceTitle} (text).md`;
+  } else if (params.type === "convert" && params.tool === "excel_to_csv") {
+    text = await convertExcelToCsv(await blob.arrayBuffer());
+    resultMime = "text/csv";
+    resultTitle = `${sourceTitle} (table).csv`;
   } else if (params.type === "convert" && params.tool === "pdf_merge") {
     const parts: ArrayBuffer[] = [];
     for (const assetId of params.asset_ids ?? []) {
