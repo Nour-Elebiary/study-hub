@@ -137,10 +137,13 @@ select tests.assert_true (
 -- --- ai_limits: admin edits, leaders cannot read ------------------------------
 set local role service_role;
 
+-- The model name must not collide with the defaults migration 00011 already
+-- seeded (ai_limits has a unique (provider, model) key); the RLS behaviour
+-- under test does not depend on which model string the fixture row carries.
 insert into public.ai_limits (id, provider, model, rpm, tpm, rpd)
 values (
   '8b8b8b8b-0000-4b8b-8b8b-000000000001',
-  'gemini', 'gemini-2.5-flash-lite', 10, 200000, 200
+  'gemini', 'gemini-2.5-flash-lite-ci', 10, 200000, 200
 );
 
 set local role authenticated;
@@ -157,7 +160,7 @@ set local request.jwt.claims =
 
 select tests.assert_true (
   (select rpd from public.ai_limits
-     where model = 'gemini-2.5-flash-lite') = 200,
+     where model = 'gemini-2.5-flash-lite-ci') = 200,
   'the admin reads ai_limits to edit them when Google changes the numbers'
 );
 
