@@ -405,6 +405,13 @@ export function NoteEditor({
               {dictationError}
             </p>
           )}
+          {!listening && !dictationError && (
+            <p className="text-muted-foreground text-xs">
+              Heads-up: in some browsers, dictation sends your voice to the
+              browser maker&apos;s service. For private or long recordings,
+              record the audio and transcribe it instead.
+            </p>
+          )}
         </div>
       )}
 
