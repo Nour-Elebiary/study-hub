@@ -1,4 +1,5 @@
 import "server-only";
+import { connection } from "next/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -23,6 +24,12 @@ export type StudentCourse = {
 
 /** The verified cookie payload, or null when the visitor has not joined. */
 export async function getStudentScope(): Promise<StudentPayload | null> {
+  // Every student page is personalized by the join cookie, so nothing here
+  // can be prerendered: without this boundary Cache Components attempts a
+  // prerender pass with no cookie, logs an unstable-value error for the
+  // cookie age check, and serves a postponed shell whose recorded
+  // redirect("/s/join") is useless to every real visitor.
+  await connection();
   const cookieStore = await cookies();
   return verifyStudentCookie(cookieStore.get(STUDENT_COOKIE)?.value);
 }

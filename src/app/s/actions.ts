@@ -89,7 +89,7 @@ export async function joinAction(
   cookieStore.set(
     STUDENT_COOKIE,
     signStudentCookie(scope),
-    studentCookieOptions,
+    studentCookieOptions(),
   );
   redirect("/s");
 }

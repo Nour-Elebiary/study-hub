@@ -14,6 +14,17 @@ export const STUDENT_COOKIE = "sh_student";
 
 const NINETY_DAYS_SECONDS = 90 * 24 * 60 * 60;
 
+/**
+ * Any 8-4-4-4-12 hex UUID. Deliberately NOT z.uuid(): that also enforces the
+ * RFC version and variant nibbles, and the seed data uses readable ids like
+ * cccccccc-0000-cccc-0000-000000000001 which Postgres accepts but zod
+ * rejects — which silently invalidated every scoped join cookie (the e2e
+ * join-flow failure). These ids only ever come from our own join action and
+ * are HMAC-protected, so a format check is the right strength here.
+ */
+const UUID_FORMAT =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const payloadSchema = z.object({
   v: z.literal(1),
   iat: z.number().int().positive(), // issued at, unix ms
@@ -21,7 +32,7 @@ const payloadSchema = z.object({
     z.object({ all: z.literal(true) }),
     z.object({
       all: z.literal(false),
-      courseIds: z.array(z.uuid()).max(200),
+      courseIds: z.array(z.string().regex(UUID_FORMAT)).max(200),
     }),
   ]),
 });
@@ -34,13 +45,22 @@ export type StudentPayload = {
   scope: StudentScope;
 };
 
-export const studentCookieOptions = {
-  httpOnly: true,
-  sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
-  path: "/",
-  maxAge: NINETY_DAYS_SECONDS,
-};
+/**
+ * The cookie must be sent back only over the kind of connection it was set
+ * on. The Secure flag follows the site's own address (APP_URL): real
+ * deployments serve https, so their cookie is Secure. Local and CI run over
+ * plain http, where Chrome stores a network-set Secure cookie but refuses to
+ * send it back — even on 127.0.0.1 — which would break the join flow there.
+ */
+export function studentCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: requiredServerEnv("APP_URL").startsWith("https://"),
+    path: "/",
+    maxAge: NINETY_DAYS_SECONDS,
+  };
+}
 
 function sign(value: string): string {
   return createHmac("sha256", requiredServerEnv("JOIN_COOKIE_SECRET"))
