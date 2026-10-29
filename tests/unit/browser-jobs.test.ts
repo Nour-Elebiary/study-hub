@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { convertExcelToCsv } from "@/lib/browser-jobs/convert";
+import {
+  Dictation,
+  dictationLocale,
+  dictationSupported,
+} from "@/lib/browser-jobs/dictation";
 import { parsePageSelection } from "@/lib/browser-jobs/pdf";
 
 describe("parsePageSelection", () => {
@@ -75,5 +80,32 @@ describe("convertExcelToCsv", () => {
     );
     expect(csv).toBe("a");
     expect(csv).not.toContain("b");
+  });
+});
+
+describe("dictation", () => {
+  it("maps the language picker codes to speech locales", () => {
+    expect(dictationLocale("eng")).toBe("en-US");
+    expect(dictationLocale("ara")).toBe("ar");
+  });
+
+  it("reports no support when the browser has no speech engine", () => {
+    // jsdom has no SpeechRecognition, like Firefox.
+    expect(dictationSupported()).toBe(false);
+  });
+
+  it("fails with a plain message when the engine is missing", () => {
+    let error = "";
+    const dictation = new Dictation();
+    dictation.start("en-US", {
+      onFinal: () => {},
+      onInterim: () => {},
+      onError: (message) => {
+        error = message;
+      },
+      onEnd: () => {},
+    });
+    expect(error).toContain("does not support dictation");
+    expect(dictation.active).toBe(false);
   });
 });

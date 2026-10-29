@@ -16,6 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dictation, dictationLocale } from "@/lib/browser-jobs/dictation";
+import { OCR_LANGUAGE_LABELS, type OcrLanguage } from "@/lib/jobs";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 
 const AUTOSAVE_MS = 5_000; // draft every 5 seconds (spec section 6)
@@ -67,6 +69,49 @@ export function NoteEditor({
   const lastSavedRef = useRef(initialBody);
   const lastVersionRef = useRef(0); // baseline set on the first autosave tick
   const dirtyRef = useRef(false);
+
+  // --- live dictation (spec section 7, Web Speech API) -----------------------
+  const dictationRef = useRef<Dictation | null>(null);
+  const [listening, setListening] = useState(false);
+  const [interim, setInterim] = useState("");
+  const [dictationError, setDictationError] = useState("");
+  const [dictationLang, setDictationLang] = useState<OcrLanguage>("eng");
+
+  // Stop the microphone when the editor goes away.
+  useEffect(() => {
+    return () => {
+      dictationRef.current?.stop();
+    };
+  }, []);
+
+  function toggleDictation() {
+    if (!dictationRef.current) dictationRef.current = new Dictation();
+    const dictation = dictationRef.current;
+    if (dictation.active) {
+      dictation.stop();
+      setListening(false);
+      setInterim("");
+      return;
+    }
+    setDictationError("");
+    dictation.start(dictationLocale(dictationLang), {
+      onFinal: (text) => {
+        if (!text) return;
+        editor?.chain().focus().insertContent(`${text} `).run();
+      },
+      onInterim: (text) => setInterim(text),
+      onError: (message) => {
+        setDictationError(message);
+        setListening(false);
+        setInterim("");
+      },
+      onEnd: () => {
+        setListening(false);
+        setInterim("");
+      },
+    });
+    setListening(true);
+  }
 
   const editor = useEditor({
     extensions: [
@@ -326,6 +371,41 @@ export function NoteEditor({
         <p role="status" className="text-muted-foreground text-sm">
           Writing version…
         </p>
+      )}
+
+      {canWrite && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border p-2">
+          <Button
+            type="button"
+            variant={listening ? "secondary" : "outline"}
+            size="sm"
+            className="h-10 px-3"
+            onClick={toggleDictation}
+            aria-pressed={listening}
+          >
+            {listening ? "⏹ Stop dictation" : "🎤 Dictate"}
+          </Button>
+          <select
+            aria-label="Dictation language"
+            value={dictationLang}
+            onChange={(e) => setDictationLang(e.target.value as OcrLanguage)}
+            disabled={listening}
+            className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+          >
+            <option value="eng">{OCR_LANGUAGE_LABELS.eng}</option>
+            <option value="ara">{OCR_LANGUAGE_LABELS.ara}</option>
+          </select>
+          {listening && interim && (
+            <span className="text-muted-foreground text-sm italic" dir="auto">
+              {interim}
+            </span>
+          )}
+          {dictationError && (
+            <p role="alert" className="text-destructive text-sm">
+              {dictationError}
+            </p>
+          )}
+        </div>
       )}
 
       <div
