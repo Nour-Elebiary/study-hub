@@ -70,14 +70,17 @@ select tests.assert_true (
   'the owner reads their key''s masked last4'
 );
 
---- the ciphertext column is not even addressable by a client role -------------
+--- the ciphertext column is unreadable by a client role ------------------------
 do $$
 begin
   perform (select key_ciphertext from public.ai_keys);
   raise exception 'ASSERT FAILED: client role read key_ciphertext';
 exception
-  when undefined_column then
-    null; -- expected: the column grant omits key_ciphertext
+  when insufficient_privilege then
+    null; -- expected: the column grant (00010) omits key_ciphertext, so the
+          -- executor rejects the read with 42501. Column grants deny access
+          -- but do not hide the column from the catalog, so this is an
+          -- insufficient_privilege error, not undefined_column.
 end $$;
 
 --- clients cannot create, change or remove keys --------------------------------
