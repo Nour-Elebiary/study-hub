@@ -44,13 +44,22 @@ test("a published note renders with its body, tag, and assets", async ({
 });
 
 test("a draft note is not readable by students", async ({ page }) => {
-  const response = await page.goto(DRAFT_NOTE);
-  expect(response?.status()).toBe(404);
+  // Cache Components streams the shell before the dynamic notFound() runs,
+  // so the HTTP status stays 200 (docs/QUESTIONS.md #27). The guarantee we
+  // assert is the not-found screen and the absence of any draft content.
+  await page.goto(DRAFT_NOTE);
+  await expect(
+    page.getByRole("heading", { name: "Page not found" }),
+  ).toBeVisible();
+  await expect(page.getByText("Lecture 1 (draft)")).toHaveCount(0);
 });
 
 test("another course's page is not readable", async ({ page }) => {
-  const response = await page.goto(OTHER_COURSE);
-  expect(response?.status()).toBe(404);
+  await page.goto(OTHER_COURSE);
+  await expect(
+    page.getByRole("heading", { name: "Page not found" }),
+  ).toBeVisible();
+  await expect(page.getByText("Course B (sample)")).toHaveCount(0);
 });
 
 test("a student can suggest a correction", async ({ page }) => {
