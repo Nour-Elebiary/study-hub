@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   assetEligibleForTool,
+  BROWSER_TRANSCRIBE_MAX_MINUTES,
   CONVERT_TOOL_LABELS,
   JOB_STATUS_LABELS,
   JOB_TYPE_LABELS,
@@ -105,6 +106,7 @@ function paramsSummary(type: string, params: unknown): string {
     tool?: string;
     asset_ids?: string[];
     pages?: string;
+    in_browser?: boolean;
   };
   const languages = (p.languages ?? [])
     .map((l) => OCR_LANGUAGE_LABELS[l])
@@ -115,7 +117,9 @@ function paramsSummary(type: string, params: unknown): string {
       : languages;
   }
   if (type === "transcribe") {
-    return `Audio to text (${languages})`;
+    return p.in_browser
+      ? `Audio to text (${languages}, in browser)`
+      : `Audio to text (${languages})`;
   }
   if (type === "convert") {
     if (p.tool === "pdf_merge") {
@@ -317,7 +321,11 @@ function JobForm({
             ? { type: "ocr", languages, source: "image" }
             : tool === "ocr_pdf"
               ? { type: "ocr", languages, source: "pdf_scan" }
-              : { type: "transcribe", languages };
+              : {
+                  type: "transcribe",
+                  languages,
+                  in_browser: fd.get("in_browser") === "on",
+                };
       } else if (tool === "word_to_markdown") {
         params = { type: "convert", tool: "word_to_markdown" };
       } else if (tool === "pdf_merge") {
@@ -499,6 +507,22 @@ function JobForm({
                 {OCR_LANGUAGE_LABELS.ara}
               </label>
             </fieldset>
+          )}
+
+          {tool === "transcribe" && (
+            <div className="grid gap-1">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="in_browser" className="size-4" />
+                Run in this browser instead (for recordings up to{" "}
+                {BROWSER_TRANSCRIBE_MAX_MINUTES} minutes)
+              </label>
+              <p className="text-muted-foreground text-xs">
+                Use this when the Home Worker is offline. The first run
+                downloads a small transcription model (about 75 MB) and the
+                browser keeps it for next time. The recording never leaves this
+                device, but it can take several minutes.
+              </p>
+            </div>
           )}
 
           {tool === "pdf_split" && (

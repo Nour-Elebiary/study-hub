@@ -6,6 +6,8 @@ import {
   dictationSupported,
 } from "@/lib/browser-jobs/dictation";
 import { parsePageSelection } from "@/lib/browser-jobs/pdf";
+import { whisperLanguageFor } from "@/lib/browser-jobs/transcribe";
+import { runnerForJob } from "@/lib/jobs";
 
 describe("parsePageSelection", () => {
   it("turns '1-3,5' into zero-based indices", () => {
@@ -107,5 +109,39 @@ describe("dictation", () => {
     });
     expect(error).toContain("does not support dictation");
     expect(dictation.active).toBe(false);
+  });
+});
+
+describe("browser transcription fallback", () => {
+  it("forces one language and detects when both are picked", () => {
+    expect(whisperLanguageFor(["eng"])).toBe("en");
+    expect(whisperLanguageFor(["ara"])).toBe("ar");
+    expect(whisperLanguageFor(["eng", "ara"])).toBeUndefined();
+  });
+
+  it("runs transcription in the browser only when the leader asks", () => {
+    expect(
+      runnerForJob("transcribe", {
+        type: "transcribe",
+        languages: ["eng"],
+        in_browser: false,
+      }),
+    ).toBe("worker");
+    expect(
+      runnerForJob("transcribe", {
+        type: "transcribe",
+        languages: ["eng"],
+        in_browser: true,
+      }),
+    ).toBe("browser");
+  });
+
+  it("defaults missing in_browser to the worker (older job rows)", () => {
+    expect(
+      runnerForJob("transcribe", {
+        type: "transcribe",
+        languages: ["ara"],
+      }),
+    ).toBe("worker");
   });
 });

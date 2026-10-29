@@ -7,6 +7,7 @@ import {
 } from "@/lib/browser-jobs/convert";
 import { runOcr } from "@/lib/browser-jobs/ocr";
 import { mergePdfs, splitPdf } from "@/lib/browser-jobs/pdf";
+import { transcribeInBrowser } from "@/lib/browser-jobs/transcribe";
 import { randomStoragePath } from "@/lib/file-allowlist";
 import {
   jobParamsSchema,
@@ -106,6 +107,11 @@ async function runJob(supabase: Supabase, job: QueuedJob): Promise<void> {
     text = await convertExcelToCsv(await blob.arrayBuffer());
     resultMime = "text/csv";
     resultTitle = `${sourceTitle} (table).csv`;
+  } else if (params.type === "transcribe") {
+    // The browser Whisper fallback (spec section 7): small model, local.
+    text = await transcribeInBrowser(blob, params.languages);
+    resultMime = "text/plain";
+    resultTitle = `${sourceTitle} (text).md`;
   } else if (params.type === "convert" && params.tool === "pdf_merge") {
     const parts: ArrayBuffer[] = [];
     for (const assetId of params.asset_ids ?? []) {

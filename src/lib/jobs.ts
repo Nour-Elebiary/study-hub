@@ -83,6 +83,14 @@ export type OcrSource = (typeof ocrSources)[number];
 export const PPTX_MIME =
   "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
+/**
+ * The browser Whisper fallback (spec section 7 table) is offered for audio
+ * up to this length. There is no duration metadata on an asset, so the
+ * limit is carried by the form's wording and the leader's own judgment
+ * (docs/QUESTIONS.md #26).
+ */
+export const BROWSER_TRANSCRIBE_MAX_MINUTES = 10;
+
 export const jobParamsSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("ocr"),
@@ -103,6 +111,9 @@ export const jobParamsSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("transcribe"),
     languages: ocrLanguagesSchema,
+    /** true: run in the leader's browser (Transformers.js fallback). Older
+     * rows predate the field, so it is optional, not defaulted. */
+    in_browser: z.boolean().optional(),
   }),
   // ai_task arrives with M7; its params are defined then.
 ]);
@@ -120,7 +131,11 @@ export function runnerForJob(type: JobType, params: JobParams): JobRunner {
       ? "worker"
       : "browser";
   }
-  if (type === "transcribe") return "worker";
+  if (type === "transcribe") {
+    return params.type === "transcribe" && params.in_browser
+      ? "browser"
+      : "worker";
+  }
   if (type === "ai_task") return "gemini";
   // convert
   if (params.type !== "convert") return "browser";

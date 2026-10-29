@@ -131,9 +131,10 @@ export async function createJobAction(
     // ai_task arrives with the AI assistant (M7).
     return firstError("That job type is not available yet.");
   }
-  // Heavy jobs run on the leader's own PC, which fetches the file through a
-  // signed URL — a Drive link has nothing to hand over.
-  if (runner === "worker" && asset.storage !== "supabase") {
+  // Every runner fetches the file from Study Hub Storage (the browser
+  // downloads it authenticated, the worker through a signed URL) — a Drive
+  // link has nothing to hand over.
+  if (asset.storage !== "supabase") {
     return firstError(
       "This job needs the file stored in Study Hub, not a Drive link.",
     );
