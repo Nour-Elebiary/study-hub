@@ -8,6 +8,15 @@ on:
 permissions:
   contents: read
 
+env:
+  # onnxruntime-node's postinstall downloads ~200 MB of CUDA/TensorRT GPU
+  # binaries from api.nuget.org on linux/x64 on every npm ci. This app runs
+  # inference only in the browser (whisper-worker.ts), never in Node, and the
+  # CPU binaries are bundled in the package — the download is dead weight and
+  # a recurring network-timeout flake source (Log-fali-11). The skip flag is
+  # the install script's documented opt-out.
+  ONNXRUNTIME_NODE_INSTALL: skip
+
 jobs:
   quality:
     name: Lint, typecheck, unit tests

@@ -48,8 +48,9 @@ values
   ('f6f6f6f5-1000-4f6f-8f6f-000000000004', 'cccccccc-0000-cccc-0000-000000000001',
    'transcribe', 'worker', 'a1a1a1a1-3000-4a1a-8a1a-000000000001',
    '{"type":"transcribe","languages":["ara"]}'::jsonb,
-   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid,
-   now () - interval '4 minutes', now () + interval '1 hour');
+   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid, now () - interval '4 minutes');
+-- run_after is set below by an update: the insert above must match the
+-- column list (8 columns), and the not-yet-due state is the update's job.
 
 update public.jobs set run_after = now () + interval '1 hour'
 where id = 'f6f6f6f5-1000-4f6f-8f6f-000000000004';
