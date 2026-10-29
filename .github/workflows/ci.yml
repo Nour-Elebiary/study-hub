@@ -96,6 +96,12 @@ jobs:
           run_lh "http://127.0.0.1:3000/s" lh-home.json
           run_lh "http://127.0.0.1:3000/s/notes/eeeeeeee-0000-eeee-0000-000000000003" lh-note.json
 
+      - name: Load test (20 concurrent users)
+        run: |
+          # The server started in the previous step is still running.
+          export $(grep '^JOIN_COOKIE_SECRET=' .env.local)
+          node scripts/load-test.mjs
+
   security:
     name: Secret scan + dependency audit
     runs-on: ubuntu-latest
