@@ -75,6 +75,15 @@ export default async function StudentCoursePage({
         </p>
       </div>
 
+      {/* Spec section 10: each course carries a sharing reminder. */}
+      <p
+        dir="auto"
+        className="text-muted-foreground bg-muted/40 rounded-md border p-3 text-sm"
+      >
+        Reminder: some material in this course comes from your professor and may
+        need their permission before you share it outside the class.
+      </p>
+
       <Link
         href={`/s/map/${courseId}`}
         className="text-sm font-medium underline underline-offset-4"
