@@ -112,13 +112,11 @@ export async function buildExport(): Promise<ExportResult> {
   const counts: Record<string, number> = {};
 
   // One fetch per table, reused for both the JSON files and the Markdown.
+  // Soft-deleted nodes are included: they are still inside their 30-day
+  // retention window (spec rule 5), and a backup must not lose them.
   const tables = new Map<string, Record<string, unknown>[]>();
   for (const table of CONTENT_TABLES) {
-    let query = admin.from(table).select("*");
-    // Soft-deleted nodes keep their 30-day retention window (spec rule 5);
-    // a backup includes them so a restore can finish that window.
-    if (table === "nodes") query = query.is("deleted_at", null);
-    const { data, error } = await query;
+    const { data, error } = await admin.from(table).select("*");
     if (error) {
       throw new Error(`Export failed reading ${table}: ${error.message}`);
     }
@@ -216,7 +214,7 @@ export async function buildExport(): Promise<ExportResult> {
         format: "study-hub-export/1",
         counts,
         excluded:
-          "ai_keys (secret material), join_codes (hashes), audit_log, locks, rate_limits, jobs, worker_heartbeats, ai_usage, ai_conversations, ai_messages",
+          "ai_keys (secret material), join_codes (hashes), audit_log, locks, rate_limits, jobs, worker_heartbeats, ai_usage, ai_conversations, ai_messages, supabase storage file contents (re-upload files after a restore)",
       },
       null,
       2,
