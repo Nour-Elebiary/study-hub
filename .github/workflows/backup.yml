@@ -1,0 +1,46 @@
+name: Backup
+
+# Spec section 11 rule 2: a weekly export of every content table, saved as a
+# workflow artifact kept for 90 days. The job calls POST /api/admin/export
+# with the backup token; the server stores only the token's SHA-256 hash
+# (BACKUP_TOKEN_HASH). The ZIP excludes AI key material and join-code hashes.
+
+on:
+  schedule:
+    # 04:00 UTC every Saturday.
+    - cron: "0 4 * * 6"
+  workflow_dispatch: {} # manual run for the monthly save-to-Drive routine
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    name: Export content ZIP
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the export endpoint
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          BACKUP_TOKEN: ${{ secrets.BACKUP_TOKEN }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$BACKUP_TOKEN" ]; then
+            echo "Secrets APP_URL and BACKUP_TOKEN must both be set."
+            echo "Add them under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          # --fail turns a 4xx/5xx into a failed step, so a broken backup
+          # emails the maintainers instead of saving an error page.
+          curl --fail --show-error --max-time 300 \
+            -H "Authorization: Bearer $BACKUP_TOKEN" \
+            -o study-hub-export.zip \
+            "$APP_URL/api/admin/export"
+          ls -la study-hub-export.zip
+
+      - name: Save the ZIP as an artifact (90 days)
+        uses: actions/upload-artifact@v4
+        with:
+          name: study-hub-export
+          path: study-hub-export.zip
+          retention-days: 90
+          if-no-files-found: error

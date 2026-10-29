@@ -1,0 +1,31 @@
+name: Keep-alive
+
+# Spec section 11 rule 1: Supabase Free pauses the project after 7 idle
+# days. This workflow calls GET /api/health every day, which runs one trivial
+# database query and keeps the project active. It fails loudly (red run and
+# an email) if the site or the database stops answering.
+
+on:
+  schedule:
+    # 05:00 UTC every day — picked outside school hours in any timezone.
+    - cron: "0 5 * * *"
+  workflow_dispatch: {} # manual run for testing
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping /api/health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the health endpoint
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "Secret APP_URL is not set. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          curl --fail --show-error --max-time 30 -o /dev/null "$APP_URL/api/health"
+          echo "Health check passed at $APP_URL/api/health"

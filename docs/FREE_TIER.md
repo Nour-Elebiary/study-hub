@@ -121,6 +121,7 @@ with the date and the official source before the code that uses it is merged.
 | 2026-10-28 | turndown (+ @types/turndown) (M5 HTML to Markdown for the note body)                                                            | MIT          | Open-source HTML-to-Markdown converter; no hosted service                                                                                  | https://github.com/domchristie/turndown    |
 | 2026-10-28 | pdf-lib (M5 merge and split of PDFs in the browser)                                                                             | MIT          | Open-source PDF toolkit that runs in the browser; no hosted service                                                                        | https://github.com/Hopding/pdf-lib         |
 | 2026-10-29 | qrcode (+ @types/qrcode, dev) (M8 join-code QR on the access screen)                                                            | MIT          | Open-source QR generator that runs on the server; the join link never leaves the app, unlike hosted QR image services                      | https://github.com/soldair/node-qrcode     |
+| 2026-10-29 | jszip (M8 content export ZIP)                                                                                                   | MIT          | Open-source ZIP builder that runs on the server; no hosted service. Already present as a transitive dependency of mammoth                  | https://github.com/Stuk/jszip              |
 
 ## Home Worker (M6) — Python packages and desktop tools
 
