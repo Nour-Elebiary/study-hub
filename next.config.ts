@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 /**
  * Security headers and a strict Content-Security-Policy (spec section 11.5).
@@ -77,4 +78,8 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// next-intl (spec section 12 stack). The request config lives outside the
+// default location, so its path is given explicitly.
+const withNextIntl = createNextIntlPlugin("./src/lib/i18n/request.ts");
+
+export default withNextIntl(nextConfig);

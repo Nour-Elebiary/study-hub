@@ -1,0 +1,25 @@
+{
+  "app": {
+    "name": "Study Hub"
+  },
+  "student": {
+    "nav": {
+      "ariaLabel": "Student navigation",
+      "search": "Search",
+      "tags": "Tags"
+    },
+    "join": {
+      "title": "Welcome to Study Hub",
+      "intro": "Enter the join code your teacher gave you. You do not need an account — this device will remember you for 90 days.",
+      "label": "Join code",
+      "submit": "Open my courses",
+      "checking": "Checking…"
+    },
+    "course": {
+      "back": "← My courses",
+      "outline": "View as outline (mind-map) →",
+      "empty": "Nothing published here yet.",
+      "reminder": "Reminder: some material in this course comes from your professor and may need their permission before you share it outside the class."
+    }
+  }
+}

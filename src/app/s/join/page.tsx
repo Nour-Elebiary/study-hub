@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { JoinForm } from "@/app/s/join/join-form";
 import { sanitizeJoinCodeParam } from "@/lib/join-code";
 import { getStudentScope } from "@/lib/student-access";
@@ -17,6 +18,7 @@ export default async function JoinPage({ searchParams }: PageProps<"/s/join">) {
     redirect("/s");
   }
 
+  const t = await getTranslations("student.join");
   const params = await searchParams;
   const raw = typeof params.code === "string" ? params.code : "";
   // Sanitized server-side: only the code alphabet survives, so a crafted
@@ -26,11 +28,8 @@ export default async function JoinPage({ searchParams }: PageProps<"/s/join">) {
   return (
     <div className="grid gap-6 pt-8">
       <div className="grid gap-2 text-center">
-        <h1 className="text-2xl font-bold">Welcome to Study Hub</h1>
-        <p className="text-muted-foreground text-sm">
-          Enter the join code your teacher gave you. You do not need an account
-          — this device will remember you for 90 days.
-        </p>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+        <p className="text-muted-foreground text-sm">{t("intro")}</p>
       </div>
       <JoinForm defaultCode={defaultCode} />
     </div>

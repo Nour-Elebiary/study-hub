@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale } from "next-intl/server";
 import { InstallPrompt } from "@/components/install-prompt";
 import { RegisterServiceWorker } from "@/components/register-sw";
 import "./globals.css";
@@ -42,10 +44,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const locale = await getLocale();
   return (
     <html
-      lang="en"
+      lang={locale}
       dir="ltr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
@@ -60,7 +63,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body className="flex min-h-full flex-col">
-        {children}
+        <NextIntlClientProvider locale={locale}>
+          {children}
+        </NextIntlClientProvider>
         <RegisterServiceWorker />
         <InstallPrompt />
       </body>

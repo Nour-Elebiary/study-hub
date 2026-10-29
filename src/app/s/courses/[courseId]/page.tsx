@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { contentAreas } from "@/lib/schemas";
 import { requireStudentScope } from "@/lib/student-access";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -50,6 +51,8 @@ export default async function StudentCoursePage({
     area: n.area as string,
   }));
 
+  const t = await getTranslations("student.course");
+
   const byArea = new Map<string, { id: string; title: string }[]>();
   for (const n of nodes) {
     const list = byArea.get(n.area) ?? [];
@@ -64,7 +67,7 @@ export default async function StudentCoursePage({
           href="/s"
           className="text-muted-foreground text-sm underline underline-offset-4"
         >
-          ← My courses
+          {t("back")}
         </Link>
         <h1 className="mt-2 text-2xl font-bold" dir="auto">
           {course.title}
@@ -80,21 +83,18 @@ export default async function StudentCoursePage({
         dir="auto"
         className="text-muted-foreground bg-muted/40 rounded-md border p-3 text-sm"
       >
-        Reminder: some material in this course comes from your professor and may
-        need their permission before you share it outside the class.
+        {t("reminder")}
       </p>
 
       <Link
         href={`/s/map/${courseId}`}
         className="text-sm font-medium underline underline-offset-4"
       >
-        View as outline (mind-map) →
+        {t("outline")}
       </Link>
 
       {nodes.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          Nothing published here yet.
-        </p>
+        <p className="text-muted-foreground text-sm">{t("empty")}</p>
       ) : (
         contentAreas
           .filter((area) => byArea.has(area))

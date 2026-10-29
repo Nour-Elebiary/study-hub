@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { TextSizeControl } from "@/components/text-size";
 
 /**
@@ -10,24 +11,25 @@ import { TextSizeControl } from "@/components/text-size";
 export const instant = false;
 
 export default async function StudentLayout({ children }: LayoutProps<"/s">) {
+  const t = await getTranslations();
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="bg-background sticky top-0 border-b print:hidden">
         <div className="mx-auto flex h-14 w-full max-w-2xl items-center justify-between gap-2 px-4">
           <Link href="/s" className="text-sm font-semibold">
-            Study Hub
+            {t("app.name")}
           </Link>
           <div className="flex items-center gap-1">
             <TextSizeControl />
             <nav
-              aria-label="Student navigation"
+              aria-label={t("student.nav.ariaLabel")}
               className="flex items-center gap-3"
             >
               <Link href="/s/search" className="text-sm font-medium">
-                Search
+                {t("student.nav.search")}
               </Link>
               <Link href="/s/tags" className="text-sm font-medium">
-                Tags
+                {t("student.nav.tags")}
               </Link>
             </nav>
           </div>
