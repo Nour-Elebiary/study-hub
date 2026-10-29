@@ -74,6 +74,14 @@ jobs:
       - run: npm run test:e2e
         env:
           E2E_PROD: "1"
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Lighthouse mobile performance (Home and Note >= 90)
         run: |
           # The student pages need the join cookie; CI mints one with the

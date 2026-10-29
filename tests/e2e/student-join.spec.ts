@@ -44,7 +44,8 @@ test("an invalid code shows a friendly error", async ({ page }) => {
   await CODE_INPUT(page).fill("WRNG-WRNG");
   await SUBMIT(page).click();
 
-  await expect(page.getByRole("alert")).toContainText(
+  // Next's route announcer also has role="alert"; scope to the join form.
+  await expect(page.locator("form").getByRole("alert")).toContainText(
     "That code is not valid, or it has expired",
   );
   await expect(page).toHaveURL(new RegExp(JOIN_URL));
@@ -62,7 +63,8 @@ test("too many attempts are rate limited", async ({ page }) => {
   for (let attempt = 0; attempt < 10 && !blocked; attempt++) {
     await CODE_INPUT(page).fill("WRNG-WRNG");
     await SUBMIT(page).click();
-    const alert = page.getByRole("alert");
+    // Next's route announcer also has role="alert"; scope to the join form.
+    const alert = page.locator("form").getByRole("alert");
     await expect(alert).toBeVisible({ timeout: 10_000 });
     if ((await alert.textContent())?.includes("Too many tries")) {
       blocked = true;

@@ -18,6 +18,9 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : "list",
   use: {
     baseURL: "http://127.0.0.1:3000",
+    // Keep a trace for every failing test so CI artifacts show what the
+    // page actually did (uploaded by the workflow on failure).
+    trace: "retain-on-failure",
   },
   projects: [
     {
