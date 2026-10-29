@@ -78,6 +78,29 @@ on any specific number: each leader is limited by their own project's quota,
 and the app's `ai_daily_allowance_per_leader` setting (default 0 = AI off)
 is the real control.
 
+### Seeded ai_limits rows are placeholders — admin must verify (M7)
+
+Checked: 29 October 2026 — Source:
+https://ai.google.dev/gemini-api/docs/rate-limits (the page publishes the
+current per-model free-tier caps; numbers change often and are tier- and
+region-dependent).
+
+Migration `00011_m7_ai_limits_defaults.sql` seeds `ai_limits` with
+**conservative placeholder numbers** so the router has something to project
+against:
+
+| Model                 | rpm | tpm    | rpd | soft_pct |
+| --------------------- | --- | ------ | --- | -------- |
+| gemini-2.5-flash-lite | 10  | 200000 | 200 | 80       |
+| gemini-2.5-flash      | 10  | 200000 | 200 | 80       |
+
+These are deliberately lower than the published free-tier caps, so the app
+can only under-use a key, never over-use it. **Before real use the admin
+must open the rate-limits page, compare the current published numbers, and
+update `ai_limits` in the admin portal** — the router treats a real 429 as
+the final truth either way (the key cools down and the next candidate is
+tried), so a stale row costs availability, not compliance.
+
 ## What this file is for
 
 When a new milestone wants to add a service or a dependency, add a row here
