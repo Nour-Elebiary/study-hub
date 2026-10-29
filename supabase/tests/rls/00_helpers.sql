@@ -34,4 +34,8 @@ $$;
 -- caller's boolean under that role's own RLS context), so the roles need
 -- schema usage. Function execute is public by default; the helpers only raise
 -- exceptions and set local GUCs, so this is safe in the local test database.
-grant usage on schema tests to anon, authenticated;
+-- service_role is included for the same reason (test 13 asserts as it while
+-- exercising the worker claim function): this database's default privileges
+-- revoke schema usage from public, so every client role needs the explicit
+-- grant (caught by CI as "permission denied for schema tests").
+grant usage on schema tests to anon, authenticated, service_role;
