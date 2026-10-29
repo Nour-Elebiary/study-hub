@@ -1,9 +1,13 @@
 # Setting up the Home Worker
 
-The Home Worker is a small program that runs on one leader's Windows
-computer and does the heavy jobs — scanned-PDF OCR, Word/PowerPoint to
-PDF, video work, and turning recordings into text. Everything runs on that
-computer; nothing is sent to outside services.
+The Home Worker is a small program that runs on one Windows computer and
+does the heavy jobs — scanned-PDF OCR, Word/PowerPoint to PDF, video work,
+and turning recordings into text. Everything runs on that computer; nothing
+is sent to outside services.
+
+**One worker serves the whole school.** You do not need one on every
+leader's computer — the job queue is built so several workers could share
+it, but in practice one machine that is usually switched on is enough.
 
 The full step-by-step install guide lives in
 [`worker/README.md`](../worker/README.md) — read that first. This page is
@@ -24,6 +28,27 @@ the short version and the safety notes.
    redeploy. This is done once for the whole platform.
 4. Run `run-worker.cmd` (or log off and on). The Jobs screen shows
    **Home Worker: online** for admins.
+
+## Which computer?
+
+- **Any ordinary Windows PC from the last few years is enough:** four
+  processing cores, 8 GB of memory, and about 5 GB of free disk space.
+  No graphics card is needed — the transcription model is deliberately
+  the small one, tuned to run on the ordinary processor.
+- **The important part is not power — it is being on.** A worker only
+  helps while its computer is running. A modest machine left plugged in
+  (a small used mini-PC is ideal) beats a powerful laptop that is usually
+  shut. The Jobs screen shows **offline** whenever the worker's computer
+  is off, so you can always tell.
+- **A weak computer is not a problem for everyday work.** The light jobs —
+  reading text from a photo, converting a document, transcribing a
+  recording up to 10 minutes — run in your browser when you ask for them,
+  and they finish on a modest laptop or phone; they just take a little
+  longer.
+- **When the shared worker is offline or busy**, a leader can use the AI
+  assistant as a fallback for heavy work. That uses the leader's own free
+  Google AI key and counts against its quotas, so it is a pressure valve,
+  not the default.
 
 ## How the secrets work
 
