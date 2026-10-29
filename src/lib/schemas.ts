@@ -348,3 +348,22 @@ export const resolveSuggestionSchema = z.object({
   suggestion_id: z.uuid(),
   resolved: z.boolean(),
 });
+
+// ---------------------------------------------------------------------------
+// M8 admin settings (spec section 9, Settings row)
+// ---------------------------------------------------------------------------
+
+/** The Settings screen saves every known key in one request. */
+export const settingsUpdateSchema = z.object({
+  site_name: z.string().trim().min(1, "Give the site a name.").max(80),
+  max_file_mb: z.coerce.number().int().min(1).max(50),
+  retention_ai_days: z.coerce.number().int().min(7).max(365),
+  retention_audit_days: z.coerce.number().int().min(30).max(3650),
+  retention_deleted_note_days: z.coerce.number().int().min(1).max(365),
+  ai_daily_allowance_per_leader: z.coerce.number().int().min(0).max(10_000),
+  db_limit_mb: z.coerce.number().int().min(100).max(10_000),
+  storage_limit_mb: z.coerce.number().int().min(100).max(10_000),
+  password: z.string().optional(),
+});
+
+export type SettingsUpdateValues = z.infer<typeof settingsUpdateSchema>;
