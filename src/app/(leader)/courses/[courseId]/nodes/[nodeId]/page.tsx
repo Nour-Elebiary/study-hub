@@ -8,6 +8,7 @@ import {
   NoteAssets,
   type AssetItem,
 } from "@/app/(leader)/courses/[courseId]/nodes/[nodeId]/assets/note-assets";
+import { AiSidePanel } from "@/components/ai/side-panel";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getMembership } from "@/lib/course-access";
@@ -237,6 +238,13 @@ export default async function NotePage({
         }))}
         currentUserId={session.userId}
         canModerate={isAdmin || role === "owner"}
+      />
+
+      <AiSidePanel
+        courseId={courseId}
+        noteId={node.id}
+        noteTitle={node.title || "Untitled note"}
+        noteBody={body}
       />
     </div>
   );
