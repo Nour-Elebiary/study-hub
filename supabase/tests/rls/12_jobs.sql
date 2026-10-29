@@ -6,7 +6,7 @@
 --
 -- Fixtures from earlier tests: Leader A = editor in COURSE-A,
 -- Leader B = contributor in COURSE-B and reviewer in COURSE-A,
--- Leader C = no memberships (created in test 09).
+-- Leader E = no memberships (created in test 09).
 
 begin;
 

@@ -4,17 +4,19 @@
 
 begin;
 
--- Leader C has no memberships at all (Leaders A and B gained memberships
+-- Leader E has no memberships at all (Leaders A and B gained memberships
 -- in earlier test files; state persists across files). Created before the
--- role is set down to authenticated, like in test 03.
+-- role is set down to authenticated, like in test 03. A distinct email
+-- matters: test 04 already created leaderC@studyhub.local, and auth.users
+-- has a unique email index that `on conflict (id)` does not cover.
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values (
   '00000000-0000-0000-0000-000000000000', 'dddddddd-dddd-dddd-dddd-dddddddddd03',
-  'authenticated', 'authenticated', 'leaderC@studyhub.local',
-  crypt ('LeaderC-Temp-01', gen_salt ('bf')), now (),
-  '{"provider":"email","providers":["email"]}', '{"display_name":"Leader C"}',
+  'authenticated', 'authenticated', 'leaderE@studyhub.local',
+  crypt ('LeaderE-Temp-01', gen_salt ('bf')), now (),
+  '{"provider":"email","providers":["email"]}', '{"display_name":"Leader E"}',
   now (), now ()
 ) on conflict (id) do nothing;
 

@@ -8,7 +8,7 @@
 --   * the shared rate limiter counts, blocks and resets, and clients cannot
 --     call it directly through the API.
 --
--- Fixtures: seed note eeeeeeee-...-0003 (published, COURSE-A); Leaders A/B/C
+-- Fixtures: seed note eeeeeeee-...-0003 (published, COURSE-A); Leaders A/B
 -- gained their memberships in earlier test files (state persists).
 
 begin;
@@ -110,7 +110,7 @@ exception
     null; -- expected: resolving is a server action (audited), not a client write
 end $$;
 
--- --- Leader C (no memberships) reads nothing ---------------------------------
+-- --- Leader E (no memberships) reads nothing ---------------------------------
 set local request.jwt.claims =
   '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddd03","role":"authenticated"}';
 

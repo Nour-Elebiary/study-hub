@@ -5,7 +5,7 @@
 --
 -- Fixtures from earlier tests: Leader A = editor in COURSE-A,
 -- Leader B = contributor in COURSE-B and reviewer in COURSE-A,
--- Leader C = no memberships (created in test 09).
+-- Leader E = no memberships (created in test 09).
 -- Seed adds one Drive-linked asset on the COURSE-A quiz note.
 
 begin;
@@ -168,7 +168,7 @@ select tests.assert_true (
   'contributor reads and adds assets in their own course'
 );
 
--- --- Leader C (no memberships) ---------------------------------------------------
+-- --- Leader E (no memberships) ---------------------------------------------------
 set local request.jwt.claims =
   '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddd03","role":"authenticated"}';
 
