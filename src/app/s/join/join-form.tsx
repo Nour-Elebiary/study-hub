@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function JoinForm() {
+export function JoinForm({ defaultCode = "" }: { defaultCode?: string }) {
   const [state, formAction, pending] = useActionState(joinAction, null);
 
   return (
@@ -16,6 +16,7 @@ export function JoinForm() {
         <Input
           id="code"
           name="code"
+          defaultValue={defaultCode}
           inputMode="text"
           autoCapitalize="characters"
           autoCorrect="off"

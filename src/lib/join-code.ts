@@ -36,3 +36,24 @@ export function hashJoinCode(input: string): string {
     .update(normalizeJoinCode(input))
     .digest("hex");
 }
+
+/**
+ * The share link leaders send to students (spec section 9, Join codes row).
+ * The join page reads ?code= and prefills the form; the student still presses
+ * the button, so a wrong link can never join by itself.
+ */
+export function joinShareUrl(appUrl: string, code: string): string {
+  const base = appUrl.replace(/\/+$/, "");
+  return `${base}/s/join?code=${encodeURIComponent(normalizeJoinCode(code))}`;
+}
+
+/**
+ * The code from a ?code= query parameter, made safe to put back into an
+ * input field: only the code alphabet, dash-separated groups, capped length.
+ * Anything odd (script tags, extra characters) is dropped, not rendered.
+ */
+export function sanitizeJoinCodeParam(input: string): string {
+  const clean = normalizeJoinCode(input).slice(0, 8);
+  if (clean.length <= 4) return clean;
+  return `${clean.slice(0, 4)}-${clean.slice(4)}`;
+}

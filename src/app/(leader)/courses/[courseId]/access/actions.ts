@@ -2,15 +2,33 @@
 
 import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
+import QRCode from "qrcode";
 import { requireSession } from "@/lib/dal";
 import { getMembership } from "@/lib/course-access";
-import { generateJoinCode, hashJoinCode } from "@/lib/join-code";
+import { generateJoinCode, hashJoinCode, joinShareUrl } from "@/lib/join-code";
+import { requiredServerEnv } from "@/lib/env";
 import { joinCodeCreateSchema } from "@/lib/schemas";
 import { writeAudit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type JoinCodeActionState =
-  { error: string } | { ok: true; code: string; label: string } | null;
+  | { error: string }
+  | { ok: true; code: string; label: string; shareUrl: string; qrSvg: string }
+  | null;
+
+/**
+ * The QR code for a share link, generated on the server with the local
+ * `qrcode` library — no third-party service ever sees the join link.
+ * The SVG string is safe markup produced from our own URL (the library
+ * escapes the encoded data), rendered into the page once.
+ */
+async function qrSvgFor(url: string): Promise<string> {
+  return QRCode.toString(url, {
+    type: "svg",
+    margin: 1,
+    errorCorrectionLevel: "M",
+  });
+}
 
 /**
  * Creates a join code for this course (spec section 10 rule 1). Who may:
@@ -78,7 +96,14 @@ export async function createJoinCodeAction(
   });
 
   revalidatePath(`/courses/${courseId}/access`);
-  return { ok: true, code, label: parsed.data.label };
+  const shareUrl = joinShareUrl(requiredServerEnv("APP_URL"), code);
+  return {
+    ok: true,
+    code,
+    label: parsed.data.label,
+    shareUrl,
+    qrSvg: await qrSvgFor(shareUrl),
+  };
 }
 
 /** Revokes a code by deleting it (the hash is useless once the row is gone). */
@@ -115,5 +140,46 @@ export async function revokeJoinCodeAction(
   });
 
   revalidatePath(`/courses/${courseId}/access`);
-  return { ok: true, code: "", label: "" };
+  return { ok: true, code: "", label: "", shareUrl: "", qrSvg: "" };
+}
+
+/**
+ * Expires a code now (spec section 9: "Create, expire and revoke"). Unlike
+ * revoke (which deletes the row), expiring keeps the row and its use count
+ * so the leader can still see how many students used it.
+ */
+export async function expireJoinCodeAction(
+  _prev: JoinCodeActionState,
+  formData: FormData,
+): Promise<JoinCodeActionState> {
+  const session = await requireSession();
+  const courseId = String(formData.get("course_id") ?? "");
+  const codeId = String(formData.get("code_id") ?? "");
+  const membership = await getMembership(courseId, session.userId);
+  if (!membership && session.profile.global_role !== "admin") notFound();
+  if (membership && membership.role !== "owner") {
+    return { error: "Only the course owner can expire join codes." };
+  }
+
+  const admin = createAdminClient();
+  const { data: updated } = await admin
+    .from("join_codes")
+    .update({ expires_at: new Date().toISOString() })
+    .eq("id", codeId)
+    .eq("course_id", courseId)
+    .select("id");
+  if (!updated || updated.length === 0) {
+    return { error: "That code was already gone." };
+  }
+
+  await writeAudit({
+    actorId: session.userId,
+    action: "join_code.expire",
+    entity: "join_codes",
+    entityId: codeId,
+    meta: { course_id: courseId },
+  });
+
+  revalidatePath(`/courses/${courseId}/access`);
+  return { ok: true, code: "", label: "", shareUrl: "", qrSvg: "" };
 }

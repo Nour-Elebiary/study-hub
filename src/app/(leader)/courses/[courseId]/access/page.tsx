@@ -69,7 +69,12 @@ export default async function AccessPage({
         </p>
       </div>
 
-      <AccessManager courseId={courseId} codes={codes} canManage={canManage} />
+      <AccessManager
+        courseId={courseId}
+        codes={codes}
+        canManage={canManage}
+        nowIso={new Date().toISOString()}
+      />
     </div>
   );
 }

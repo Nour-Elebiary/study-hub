@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { JoinForm } from "@/app/s/join/join-form";
+import { sanitizeJoinCodeParam } from "@/lib/join-code";
 import { getStudentScope } from "@/lib/student-access";
 
 export const metadata: Metadata = { title: "Join — Study Hub" };
@@ -8,11 +9,19 @@ export const metadata: Metadata = { title: "Join — Study Hub" };
 /**
  * The student entry point (spec section 10 rule 1): one join code, no
  * account. Students who already joined go straight to their courses.
+ * A share link or QR code (spec section 9) prefills the code with ?code=;
+ * the student still presses the button, so nothing joins automatically.
  */
-export default async function JoinPage() {
+export default async function JoinPage({ searchParams }: PageProps<"/s/join">) {
   if (await getStudentScope()) {
     redirect("/s");
   }
+
+  const params = await searchParams;
+  const raw = typeof params.code === "string" ? params.code : "";
+  // Sanitized server-side: only the code alphabet survives, so a crafted
+  // link cannot smuggle markup into the page.
+  const defaultCode = raw ? sanitizeJoinCodeParam(raw) : "";
 
   return (
     <div className="grid gap-6 pt-8">
@@ -23,7 +32,7 @@ export default async function JoinPage() {
           — this device will remember you for 90 days.
         </p>
       </div>
-      <JoinForm />
+      <JoinForm defaultCode={defaultCode} />
     </div>
   );
 }

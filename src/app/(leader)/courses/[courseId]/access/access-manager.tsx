@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import {
   createJoinCodeAction,
+  expireJoinCodeAction,
   revokeJoinCodeAction,
 } from "@/app/(leader)/courses/[courseId]/access/actions";
 import { CopyButton } from "@/components/copy-button";
@@ -27,10 +28,13 @@ export function AccessManager({
   courseId,
   codes,
   canManage,
+  nowIso,
 }: {
   courseId: string;
   codes: JoinCodeRow[];
   canManage: boolean;
+  /** Server-render time, so expired-state rendering matches on hydration. */
+  nowIso: string;
 }) {
   const [createState, createFormAction, creating] = useActionState(
     createJoinCodeAction,
@@ -40,10 +44,14 @@ export function AccessManager({
     revokeJoinCodeAction,
     null,
   );
+  const [expireState, expireFormAction, expiring] = useActionState(
+    expireJoinCodeAction,
+    null,
+  );
 
   return (
     <div className="grid gap-4">
-      {createState && "ok" in createState && (
+      {createState && "ok" in createState && createState.code && (
         <div
           role="status"
           className="bg-muted rounded-md border p-3 text-sm"
@@ -58,11 +66,36 @@ export function AccessManager({
             Students enter this at the student site. Write it down now — it is
             not stored and cannot be shown again.
           </p>
+          <div className="mt-3 grid gap-2">
+            <p className="font-medium">Share link</p>
+            <p className="flex flex-wrap items-center gap-2">
+              <code className="bg-background rounded border px-2 py-1 text-xs break-all">
+                {createState.shareUrl}
+              </code>
+              <CopyButton text={createState.shareUrl} label="Copy link" />
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Or let students scan this code with a phone camera — it opens the
+              same link with the code filled in.
+            </p>
+            <div
+              className="w-40 justify-self-start rounded border bg-white p-2"
+              data-testid="join-code-qr"
+              aria-label={`QR code for the join link, code ${createState.code}`}
+              role="img"
+              dangerouslySetInnerHTML={{ __html: createState.qrSvg }}
+            />
+          </div>
         </div>
       )}
       {createState && "error" in createState && (
         <p role="alert" className="text-destructive text-sm">
           {createState.error}
+        </p>
+      )}
+      {expireState && "error" in expireState && (
+        <p role="alert" className="text-destructive text-sm">
+          {expireState.error}
         </p>
       )}
       {revokeState && "error" in revokeState && (
@@ -139,18 +172,42 @@ export function AccessManager({
                   </p>
                 </div>
                 {canManage && (
-                  <form action={revokeFormAction}>
-                    <input type="hidden" name="course_id" value={courseId} />
-                    <input type="hidden" name="code_id" value={c.id} />
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      size="sm"
-                      disabled={revoking}
-                    >
-                      Revoke
-                    </Button>
-                  </form>
+                  <div className="flex gap-2">
+                    <form action={expireFormAction}>
+                      <input type="hidden" name="course_id" value={courseId} />
+                      <input type="hidden" name="code_id" value={c.id} />
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        size="sm"
+                        disabled={
+                          expiring ||
+                          (c.expiresAt !== null &&
+                            new Date(c.expiresAt).getTime() <=
+                              new Date(nowIso).getTime())
+                        }
+                        title={
+                          c.expiresAt
+                            ? "Stop new students from joining with this code"
+                            : "Stop new students from joining with this open-ended code"
+                        }
+                      >
+                        Expire
+                      </Button>
+                    </form>
+                    <form action={revokeFormAction}>
+                      <input type="hidden" name="course_id" value={courseId} />
+                      <input type="hidden" name="code_id" value={c.id} />
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        size="sm"
+                        disabled={revoking}
+                      >
+                        Revoke
+                      </Button>
+                    </form>
+                  </div>
                 )}
               </li>
             ))}
