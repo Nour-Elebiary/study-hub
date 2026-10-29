@@ -25,7 +25,7 @@ insert into public.ai_keys (
   '7a7a7a7a-0000-4a7a-8a7a-000000000001',
   'dddddddd-dddd-dddd-dddd-dddddddddd01',
   'Leader A key', 'gemini',
-  '\x0102030405060708090a0b0c0d0e0f10'::bytea,
+  'AGRCA0UEgYJDQsMDQ4PEA==',
   'a1b2', 'leader-a-project'
 );
 
@@ -35,7 +35,7 @@ insert into public.ai_keys (
   '7a7a7a7a-0000-4a7a-8a7a-000000000002',
   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
   'Admin key', 'gemini',
-  '\x1102030405060708090a0b0c0d0e0f10'::bytea,
+  'ERIDAYUEgYJDQsMDQ4PEA==',
   'c3d4', 'admin-project'
 );
 
@@ -46,7 +46,7 @@ begin
     owner_id, label, provider, key_ciphertext, key_last4, project_label
   ) values (
     'dddddddd-dddd-dddd-dddd-dddddddddd01', 'Duplicate project', 'gemini',
-    '\x2102030405060708090a0b0c0d0e0f10'::bytea, 'e5f6', 'leader-a-project'
+    'IRIDAYUEgYJDQsMDQ4PEA==', 'e5f6', 'leader-a-project'
   );
   raise exception 'ASSERT FAILED: two keys accepted for one project_label';
 exception
@@ -87,7 +87,7 @@ begin
     owner_id, label, provider, key_ciphertext, key_last4, project_label
   ) values (
     'dddddddd-dddd-dddd-dddd-dddddddddd01', 'Self-made', 'gemini',
-    '\x3102030405060708090a0b0c0d0e0f10'::bytea, '9999', 'sneaky-project'
+    'MRIDAYUEgYJDQsMDQ4PEA==', '9999', 'sneaky-project'
   );
   raise exception 'ASSERT FAILED: client inserted an ai_keys row';
 exception

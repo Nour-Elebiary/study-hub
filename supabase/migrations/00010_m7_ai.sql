@@ -8,7 +8,8 @@
 -- decides whose key is used — a leader's own key for their own requests.
 
 -- ---------------------------------------------------------------------------
--- ai_keys: each leader's own API key, encrypted at rest (AES-256-GCM).
+-- ai_keys: each leader's own API key, encrypted at rest (AES-256-GCM,
+-- stored as base64 text so the JSON round-trip is unambiguous).
 -- provider: 'gemini' for now; other providers arrive with Tier 2 and extend
 -- the check. status 'cooling' means the router skips the key until
 -- cooldown_until (set on a 429 whose retry delay points past the minute).
@@ -18,7 +19,7 @@ create table public.ai_keys (
   owner_id uuid not null references auth.users (id) on delete cascade,
   label text not null check (char_length (label) between 1 and 60),
   provider text not null default 'gemini' check (provider in ('gemini')),
-  key_ciphertext bytea not null,
+  key_ciphertext text not null,
   key_last4 text not null check (char_length (key_last4) = 4),
   -- One key per Google Cloud project (spec section 8): a second key for the
   -- same project is refused by the app, because Google counts quota per
