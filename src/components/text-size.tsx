@@ -63,7 +63,7 @@ export function TextSizeControl() {
         className="h-8 px-2 text-xs"
         onClick={() => change(-1)}
         disabled={index === 0}
-        aria-label="Smaller text"
+        aria-label="Smaller text (A−)"
       >
         A−
       </Button>
@@ -73,7 +73,7 @@ export function TextSizeControl() {
         className="h-8 px-2 text-xs"
         onClick={() => change(1)}
         disabled={index === SIZES.length - 1}
-        aria-label="Larger text"
+        aria-label="Larger text (A+)"
       >
         A+
       </Button>

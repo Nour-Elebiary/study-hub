@@ -139,26 +139,29 @@ export default async function StudentNotePage({
                 <span aria-hidden>
                   {KIND_ICONS[a.kind] ?? KIND_ICONS.other}
                 </span>
-                <span className="min-w-0 flex-1 truncate font-medium">
-                  {a.title}
-                </span>
-                {a.storage === "supabase" && a.downloadable && (
+                {/* The title is the link text: an accessible name of just
+                    "Download"/"Open" cannot tell two files apart, and the
+                    visible name must match what screen readers announce. */}
+                {a.storage === "supabase" && a.downloadable ? (
                   <Link
                     href={`/s/download/${a.id}`}
-                    className="shrink-0 text-sm font-medium underline underline-offset-4"
+                    className="min-w-0 flex-1 truncate font-medium underline underline-offset-4"
                   >
-                    Download
+                    {a.title}
                   </Link>
-                )}
-                {a.storage !== "supabase" && a.downloadable && (
+                ) : a.storage !== "supabase" && a.downloadable ? (
                   <a
                     href={a.pathOrUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="shrink-0 text-sm font-medium underline underline-offset-4"
+                    className="min-w-0 flex-1 truncate font-medium underline underline-offset-4"
                   >
-                    Open ↗
+                    {a.title} <span aria-hidden>↗</span>
                   </a>
+                ) : (
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {a.title}
+                  </span>
                 )}
               </li>
             ))}
