@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Markdown from "react-markdown";
 import { saveDraftAction } from "@/app/(leader)/courses/[courseId]/nodes/actions";
 import { Button } from "@/components/ui/button";
 import { diffLines } from "@/lib/diff";
@@ -338,18 +339,27 @@ export function AiSidePanel(props: AiSidePanelProps) {
           </p>
         )}
         <div className="grid gap-3">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={
-                message.role === "user"
-                  ? "bg-primary text-primary-foreground ml-8 rounded-lg px-3 py-2 text-sm whitespace-pre-wrap"
-                  : "bg-muted mr-4 rounded-lg px-3 py-2 text-sm whitespace-pre-wrap"
-              }
-            >
-              {message.content}
-            </div>
-          ))}
+          {messages.map((message, index) =>
+            message.role === "user" ? (
+              <div
+                key={index}
+                className="bg-primary text-primary-foreground ml-8 rounded-lg px-3 py-2 text-sm whitespace-pre-wrap"
+              >
+                {message.content}
+              </div>
+            ) : (
+              // The assistant replies in Markdown; react-markdown escapes
+              // raw HTML, so injected tags render as harmless text (spec
+              // section 8, prompt-injection defence).
+              <div
+                key={index}
+                className="prose prose-sm bg-muted mr-4 max-w-none rounded-lg px-3 py-2"
+                dir="auto"
+              >
+                <Markdown>{message.content}</Markdown>
+              </div>
+            ),
+          )}
         </div>
 
         {taskResult && (
@@ -360,9 +370,12 @@ export function AiSidePanel(props: AiSidePanelProps) {
             {taskResult.replacesNote && props.noteBody ? (
               <DiffPreview oldText={props.noteBody} newText={taskResult.text} />
             ) : (
-              <p className="text-muted-foreground mt-2 text-sm whitespace-pre-wrap">
-                {taskResult.text}
-              </p>
+              <div
+                className="prose prose-sm text-muted-foreground mt-2 max-w-none"
+                dir="auto"
+              >
+                <Markdown>{taskResult.text}</Markdown>
+              </div>
             )}
             <div className="mt-3 flex gap-2">
               {taskResult.replacesNote ? (
