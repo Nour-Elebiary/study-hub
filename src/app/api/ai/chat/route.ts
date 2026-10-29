@@ -7,6 +7,7 @@ import {
   getOrCreateConversation,
   insertMessage,
   loadRecentTurns,
+  resolveExcerpts,
   saveRunningSummary,
   toGeminiTurns,
   verifyCourseAccess,
@@ -73,6 +74,19 @@ export async function POST(request: Request) {
     return errorResponse("not found", 404);
   }
 
+  // The ai_allowed gate (spec section 8): a request that attaches an asset
+  // not marked for AI use is refused outright.
+  const resolved = await resolveExcerpts(course_id, context?.excerpts ?? []);
+  if (!resolved.ok) {
+    return errorResponse(
+      "This file is not marked for AI use. Change the file's AI setting first.",
+      403,
+    );
+  }
+  const effectiveContext = context
+    ? { ...context, excerpts: resolved.excerpts }
+    : undefined;
+
   // Fair use (spec section 8): the daily allowance lives in settings and
   // 0 means AI is off. Counted across all of the leader's keys.
   const allowance = await getAiDailyAllowance();
@@ -93,7 +107,7 @@ export async function POST(request: Request) {
   const conversation = await getOrCreateConversation(
     session.userId,
     conversation_id,
-    context?.note_id ?? null,
+    effectiveContext?.note_id ?? null,
   );
   if (!conversation) {
     return errorResponse("The conversation could not be started.", 500);
@@ -121,7 +135,7 @@ export async function POST(request: Request) {
 
   const estTokens =
     contextTokensEst({
-      context,
+      context: effectiveContext,
       history: toGeminiTurns(history),
       packetContext: null,
     }) + estimateTokens(message);
@@ -131,7 +145,7 @@ export async function POST(request: Request) {
   let excludeKeyIds: string[] = [];
   let packetContext: string | null = null;
   const first = await pickCandidate(deps, session.userId, estTokens, []);
-  if (first?.softExceeded && context) {
+  if (first?.softExceeded && effectiveContext) {
     const preparation = await prepareHandoff(deps, {
       ownerId: session.userId,
       softKeyId: first.keyId,
@@ -140,16 +154,17 @@ export async function POST(request: Request) {
       excludeKeyIds: [],
       context: {
         goal:
-          context.goal || `Help with "${context.note_title || "this note"}"`,
-        task_type: context.task_type,
-        language: context.language,
+          effectiveContext.goal ||
+          `Help with "${effectiveContext.note_title || "this note"}"`,
+        task_type: effectiveContext.task_type,
+        language: effectiveContext.language,
         context_ids: {
           course: course_id ?? "",
           area: "",
-          node: context.note_id ?? "",
-          assets: context.excerpts.map((excerpt) => excerpt.asset_id),
+          node: effectiveContext.note_id ?? "",
+          assets: effectiveContext.excerpts.map((excerpt) => excerpt.asset_id),
         },
-        source_excerpts: context.excerpts.map((excerpt) => ({
+        source_excerpts: effectiveContext.excerpts.map((excerpt) => ({
           asset_id: excerpt.asset_id,
           text: excerpt.text.slice(0, 4_000),
         })),
@@ -165,7 +180,7 @@ export async function POST(request: Request) {
   }
 
   const contents = buildContents({
-    context,
+    context: effectiveContext,
     history: toGeminiTurns(history),
     newestUserMessage: message,
     packetContext,

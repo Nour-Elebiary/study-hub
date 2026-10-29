@@ -238,8 +238,8 @@ export async function pickCandidate(
 /**
  * Cooldown after a 429 (spec section 8). A small retryDelay (a per-minute
  * limit) cools the key for that long; a large one or a missing delay means
- * the daily allowance is gone, so the key rests until midnight Pacific.
- * The cooldown never ends before Google's own retryDelay says so.
+ * the daily allowance is gone, so the key rests until the next midnight
+ * Pacific — never earlier than Google's own retryDelay says.
  */
 export function cooldownUntilFrom429(
   now: Date,
@@ -248,16 +248,18 @@ export function cooldownUntilFrom429(
   const waitUntil = (seconds: number) =>
     new Date(now.getTime() + (seconds + 5) * 1000);
   if (retryAfterSeconds === null || retryAfterSeconds > 300) {
-    const midnight = pacificMidnightUtc(now);
-    // Just before midnight, resting until "today's" midnight would end
-    // immediately — rest into the next day instead.
-    return retryAfterSeconds === null
-      ? midnight <= now
-        ? waitUntil(24 * 3600)
-        : midnight
-      : midnight > waitUntil(retryAfterSeconds)
-        ? midnight
-        : waitUntil(retryAfterSeconds);
+    // The next midnight Pacific: today's midnight has usually already
+    // passed (it is the start of the current day bucket), so step forward
+    // a day when needed. A one-hour drift on the two DST transition days
+    // is acceptable — a real 429 re-cools the key anyway.
+    let midnight = pacificMidnightUtc(now);
+    if (midnight <= now) {
+      midnight = new Date(midnight.getTime() + 24 * 3_600_000);
+    }
+    if (retryAfterSeconds === null) return midnight;
+    return midnight > waitUntil(retryAfterSeconds)
+      ? midnight
+      : waitUntil(retryAfterSeconds);
   }
   return waitUntil(retryAfterSeconds);
 }

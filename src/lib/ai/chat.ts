@@ -28,6 +28,67 @@ export const excerptSchema = z.object({
   text: z.string().max(20_000),
 });
 
+export type ResolvedExcerpt = { asset_id: string; title: string; text: string };
+
+/**
+ * The ai_allowed gate (spec section 8, router rule 1): "Gemini is refused
+ * for any asset where ai_allowed is false." Excerpts that reference an
+ * asset are re-read from the database server-side — the client's copy is
+ * never trusted — and any disallowed or foreign-course asset refuses the
+ * whole request. Excerpts without an asset id are the leader's own pasted
+ * text and pass through capped.
+ */
+export async function resolveExcerpts(
+  courseId: string | null | undefined,
+  excerpts: Array<{ asset_id: string; title: string; text: string }>,
+  loadAsset: (assetId: string) => Promise<{
+    course_id: string;
+    ai_allowed: boolean;
+    title: string;
+    ocr_text: string | null;
+    transcript_text: string | null;
+  } | null> = loadAssetForAi,
+): Promise<{ ok: true; excerpts: ResolvedExcerpt[] } | { ok: false }> {
+  const resolved: ResolvedExcerpt[] = [];
+  for (const excerpt of excerpts) {
+    if (!excerpt.asset_id) {
+      resolved.push({
+        asset_id: "",
+        title: excerpt.title.slice(0, 200),
+        text: excerpt.text.slice(0, 20_000),
+      });
+      continue;
+    }
+    const asset = await loadAsset(excerpt.asset_id);
+    if (
+      !asset ||
+      !asset.ai_allowed ||
+      (courseId && asset.course_id !== courseId)
+    ) {
+      return { ok: false };
+    }
+    resolved.push({
+      asset_id: excerpt.asset_id,
+      title: asset.title.slice(0, 200),
+      text: (asset.ocr_text || asset.transcript_text || excerpt.text).slice(
+        0,
+        20_000,
+      ),
+    });
+  }
+  return { ok: true, excerpts: resolved };
+}
+
+async function loadAssetForAi(assetId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("assets")
+    .select("course_id, ai_allowed, title, ocr_text, transcript_text")
+    .eq("id", assetId)
+    .maybeSingle();
+  return data ?? null;
+}
+
 export const chatContextSchema = z.object({
   goal: z.string().max(500).default(""),
   task_type: z.enum(AI_TASK_TYPES).default("other"),

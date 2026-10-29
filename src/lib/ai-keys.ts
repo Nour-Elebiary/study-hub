@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
-import { encryptApiKey, keyLast4 } from "@/lib/ai-crypto";
+import { decryptApiKey, encryptApiKey, keyLast4 } from "@/lib/ai-crypto";
 
 /**
  * The leader's own key pool (spec section 8 "Compliance first"). Each key is
@@ -130,4 +130,29 @@ export async function deleteOwnKey(
     meta: { project_label: removed.project_label },
   });
   return true;
+}
+
+/**
+ * The decrypted key for the Test button — owner-filtered, service-role
+ * read, decrypted only in memory on the server. Never returned to any
+ * client: the endpoint that uses it only reports success or a friendly
+ * error.
+ */
+export async function getOwnKeySecret(
+  userId: string,
+  keyId: string,
+): Promise<{ apiKey: string; status: string } | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("ai_keys")
+    .select("key_ciphertext, status")
+    .eq("id", keyId)
+    .eq("owner_id", userId)
+    .maybeSingle();
+  const parsed = z
+    .object({ key_ciphertext: z.string(), status: z.string() })
+    .safeParse(data);
+  if (!parsed.success) return null;
+  const apiKey = decryptApiKey(parsed.data.key_ciphertext);
+  return apiKey ? { apiKey, status: parsed.data.status } : null;
 }

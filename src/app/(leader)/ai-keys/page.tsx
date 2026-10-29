@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { AddKeyForm } from "@/components/ai/add-key-form";
 import { DeleteKeyButton } from "@/components/ai/delete-key-button";
+import { TestKeyButton } from "@/components/ai/test-key-button";
 import { listOwnKeys } from "@/lib/ai-keys";
 import { requireSession } from "@/lib/dal";
 
@@ -69,6 +70,7 @@ export default async function AiKeysPage() {
                         ? "Disabled"
                         : "Active"}
                   </Badge>
+                  <TestKeyButton keyId={key.id} />
                   <DeleteKeyButton keyId={key.id} label={key.label} />
                 </div>
               </div>

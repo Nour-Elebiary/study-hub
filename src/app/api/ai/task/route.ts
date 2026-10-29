@@ -3,6 +3,7 @@ import {
   buildContents,
   contextTokensEst,
   getAiDailyAllowance,
+  resolveExcerpts,
   taskRequestSchema,
   verifyCourseAccess,
 } from "@/lib/ai/chat";
@@ -57,6 +58,19 @@ export async function POST(request: Request) {
     return errorResponse("not found", 404);
   }
 
+  // The ai_allowed gate (spec section 8): a request that attaches an asset
+  // not marked for AI use is refused outright.
+  const resolved = await resolveExcerpts(course_id, context?.excerpts ?? []);
+  if (!resolved.ok) {
+    return errorResponse(
+      "This file is not marked for AI use. Change the file's AI setting first.",
+      403,
+    );
+  }
+  const effectiveContext = context
+    ? { ...context, excerpts: resolved.excerpts }
+    : undefined;
+
   const allowance = await getAiDailyAllowance();
   if (allowance === 0) {
     return errorResponse(
@@ -81,13 +95,16 @@ export async function POST(request: Request) {
   };
 
   const estTokens =
-    contextTokensEst({ context, history: [], packetContext: null }) +
-    estimateTokens(prompt);
+    contextTokensEst({
+      context: effectiveContext,
+      history: [],
+      packetContext: null,
+    }) + estimateTokens(prompt);
 
   let excludeKeyIds: string[] = [];
   let packetContext: string | null = null;
   const first = await pickCandidate(deps, session.userId, estTokens, []);
-  if (first?.softExceeded && context) {
+  if (first?.softExceeded && effectiveContext) {
     const preparation = await prepareHandoff(deps, {
       ownerId: session.userId,
       softKeyId: first.keyId,
@@ -95,16 +112,16 @@ export async function POST(request: Request) {
       softKeyModel: first.model,
       excludeKeyIds: [],
       context: {
-        goal: context.goal || prompt.slice(0, 200),
-        task_type: context.task_type,
-        language: context.language,
+        goal: effectiveContext.goal || prompt.slice(0, 200),
+        task_type: effectiveContext.task_type,
+        language: effectiveContext.language,
         context_ids: {
           course: course_id ?? "",
           area: "",
-          node: context.note_id ?? "",
-          assets: context.excerpts.map((excerpt) => excerpt.asset_id),
+          node: effectiveContext.note_id ?? "",
+          assets: effectiveContext.excerpts.map((excerpt) => excerpt.asset_id),
         },
-        source_excerpts: context.excerpts.map((excerpt) => ({
+        source_excerpts: effectiveContext.excerpts.map((excerpt) => ({
           asset_id: excerpt.asset_id,
           text: excerpt.text.slice(0, 4_000),
         })),
@@ -120,7 +137,7 @@ export async function POST(request: Request) {
   }
 
   const contents = buildContents({
-    context,
+    context: effectiveContext,
     history: [],
     newestUserMessage: prompt,
     packetContext,
