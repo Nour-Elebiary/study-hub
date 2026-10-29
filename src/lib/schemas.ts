@@ -331,9 +331,18 @@ export const joinCodeCreateSchema = z.object({
 
 export type JoinCodeCreateValues = z.infer<typeof joinCodeCreateSchema>;
 
+/**
+ * Any 8-4-4-4-12 hex UUID. Deliberately NOT z.uuid() for values that can be
+ * a seed id: zod's z.uuid() also enforces the RFC version/variant nibbles,
+ * and the readable seed ids (eeeeeeee-0000-…) are valid Postgres uuids that
+ * zod rejects — the same convention as student-cookie.ts (QUESTIONS.md #19).
+ */
+const UUID_FORMAT =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** "Suggest a correction" from a student (spec section 10 rule 4). */
 export const suggestionSchema = z.object({
-  note_id: z.uuid(),
+  note_id: z.string().regex(UUID_FORMAT, "Invalid note id"),
   text: z
     .string()
     .trim()
