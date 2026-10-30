@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { cache } from "react";
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
@@ -21,6 +22,9 @@ export type Session = {
 
 /** Per-render-pass memoized session lookup (docs: DAL pattern). */
 export const getSession = cache(async (): Promise<Session | null> => {
+  // Personalized by the auth cookie; marks the route dynamic so Next.js Cache
+  // Components does not attempt static prerendering without request headers.
+  await connection();
   const supabase = await createClient();
   const {
     data: { user },

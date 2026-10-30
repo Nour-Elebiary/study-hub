@@ -6,17 +6,19 @@
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
-  created_at, updated_at
+  created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change, is_super_admin
 ) values (
   '00000000-0000-0000-0000-000000000000',
   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
   'authenticated', 'authenticated',
   'admin@studyhub.local',
-  crypt ('ChangeMe-Admin-01', gen_salt ('bf')),   -- temporary; must_change_password = true
+  crypt ('ChangeMe-Admin-01', gen_salt ('bf', 10)),   -- temporary; must_change_password = true
   now (),
   '{"provider":"email","providers":["email"]}',
   '{"display_name":"Nour (admin)","global_role":"admin"}',
-  now (), now ()
+  now (), now (),
+  '', '', '', '', false
 ) on conflict (id) do nothing;
 
 insert into auth.identities (
@@ -38,17 +40,19 @@ where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
-  created_at, updated_at
+  created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change, is_super_admin
 ) values (
   '00000000-0000-0000-0000-000000000000',
   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
   'authenticated', 'authenticated',
   'admin2@studyhub.local',
-  crypt ('ChangeMe-Admin-02', gen_salt ('bf')),
+  crypt ('ChangeMe-Admin-02', gen_salt ('bf', 10)),
   now (),
   '{"provider":"email","providers":["email"]}',
   '{"display_name":"Backup admin","global_role":"admin"}',
-  now (), now ()
+  now (), now (),
+  '', '', '', '', false
 ) on conflict (id) do nothing;
 
 insert into auth.identities (

@@ -27,9 +27,13 @@ function supabaseOrigins(): string[] {
 
 function contentSecurityPolicy(): string {
   const supabase = supabaseOrigins().join(" ");
+  const isDev = process.env.NODE_ENV !== "production";
+  const scriptSrc = isDev
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    : "script-src 'self' 'unsafe-inline'";
   return [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
+    scriptSrc,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: " + supabase,
     "media-src 'self' blob: " + supabase,

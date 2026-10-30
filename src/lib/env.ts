@@ -2,7 +2,13 @@
 export function requiredPublicEnv(
   name: "NEXT_PUBLIC_SUPABASE_URL" | "NEXT_PUBLIC_SUPABASE_ANON_KEY",
 ): string {
-  const value = process.env[name];
+  // In client bundles, Next.js / Turbopack only inlines static property accesses
+  // (e.g. process.env.NEXT_PUBLIC_*). Dynamic property indexing process.env[name]
+  // fails in the browser because process.env is not a runtime dictionary.
+  const value =
+    name === "NEXT_PUBLIC_SUPABASE_URL"
+      ? process.env.NEXT_PUBLIC_SUPABASE_URL
+      : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!value) {
     throw new Error(
       `Missing environment variable ${name}. Copy .env.example to .env.local and fill in the values (see README).`,
