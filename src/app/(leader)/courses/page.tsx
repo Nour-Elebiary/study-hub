@@ -24,7 +24,7 @@ export default async function CoursesPage() {
         Open a course to see its content tree — areas, sections and notes.
       </p>
       {courses && courses.length > 0 ? (
-        <div className="grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {courses.map((course) => (
             <Card key={course.id}>
               <CardHeader>

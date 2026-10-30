@@ -15,7 +15,7 @@ export default async function StudentLayout({ children }: LayoutProps<"/s">) {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="bg-background sticky top-0 border-b print:hidden">
-        <div className="mx-auto flex h-14 w-full max-w-2xl items-center justify-between gap-2 px-4">
+        <div className="mx-auto flex h-14 w-full max-w-2xl items-center justify-between gap-2 px-4 md:max-w-3xl">
           <Link href="/s" className="text-sm font-semibold">
             {t("app.name")}
           </Link>
@@ -35,7 +35,7 @@ export default async function StudentLayout({ children }: LayoutProps<"/s">) {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-4 pb-16">
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-4 pb-16 md:max-w-3xl">
         {children}
       </main>
     </div>

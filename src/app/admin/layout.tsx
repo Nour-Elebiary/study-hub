@@ -31,7 +31,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="bg-background sticky top-0 border-b">
-        <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between px-4">
+        <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between px-4 lg:max-w-4xl xl:max-w-5xl">
           <div>
             <p className="text-sm leading-tight font-medium">Study Hub admin</p>
             <p className="text-muted-foreground text-xs">
@@ -41,7 +41,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           <SignOutButton />
         </div>
         <nav aria-label="Admin sections" className="border-t md:border-t-0">
-          <ul className="mx-auto flex w-full max-w-3xl gap-1 overflow-x-auto px-2 pt-1 pb-2 md:pt-2">
+          <ul className="mx-auto flex w-full max-w-3xl gap-1 overflow-x-auto px-2 pt-1 pb-2 md:pt-2 lg:max-w-4xl xl:max-w-5xl">
             {tabs
               .filter((tab) => isAdmin || !tab.adminOnly)
               .map((tab) => (
@@ -65,7 +65,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           </ul>
         </nav>
       </header>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-4 pb-16">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-4 pb-16 lg:max-w-4xl xl:max-w-5xl">
         {children}
       </main>
     </div>

@@ -120,8 +120,8 @@ export default async function LeaderHomePage() {
   }
 
   return (
-    <div className="grid gap-4">
-      <h1 className="text-2xl font-bold">
+    <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+      <h1 className="text-2xl font-bold lg:col-span-2">
         Welcome, {session.profile.display_name}
       </h1>
 
