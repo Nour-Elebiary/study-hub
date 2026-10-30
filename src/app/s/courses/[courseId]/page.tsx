@@ -42,6 +42,9 @@ export default async function StudentCoursePage({
     .select("id, kind, title, area, sort_order")
     .eq("course_id", courseId)
     .eq("status", "published")
+    // Only nodes with a published version are readable on the student site
+    // (/s/notes 404s the rest), so the listing must match that guarantee.
+    .not("published_version_id", "is", null)
     .is("deleted_at", null)
     .order("sort_order");
 

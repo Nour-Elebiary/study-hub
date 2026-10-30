@@ -10,6 +10,8 @@ type OutlineNode = {
   id: string;
   parentId: string | null;
   title: string;
+  /** True when /s/notes/<id> can render this node. */
+  openable: boolean;
 };
 
 /**
@@ -37,7 +39,7 @@ export default async function StudentMapPage({
 
   const { data: rows } = await admin
     .from("nodes")
-    .select("id, parent_id, title, sort_order")
+    .select("id, parent_id, title, published_version_id, sort_order")
     .eq("course_id", courseId)
     .eq("status", "published")
     .is("deleted_at", null)
@@ -47,6 +49,10 @@ export default async function StudentMapPage({
     id: n.id,
     parentId: n.parent_id,
     title: n.title,
+    // Sections can be published without a version (they are folders, not
+    // notes); those stay in the tree as headings but must not link to
+    // /s/notes, which 404s them.
+    openable: n.published_version_id !== null,
   }));
 
   const childrenOf = new Map<string, OutlineNode[]>();
@@ -64,13 +70,19 @@ export default async function StudentMapPage({
       <ul className={depth === 0 ? "grid gap-1" : "grid gap-1 border-l pl-4"}>
         {children.map((n) => (
           <li key={n.id}>
-            <Link
-              href={`/s/notes/${n.id}`}
-              className="hover:bg-muted block rounded px-2 py-1.5 text-sm"
-              dir="auto"
-            >
-              {n.title}
-            </Link>
+            {n.openable ? (
+              <Link
+                href={`/s/notes/${n.id}`}
+                className="hover:bg-muted block rounded px-2 py-1.5 text-sm"
+                dir="auto"
+              >
+                {n.title}
+              </Link>
+            ) : (
+              <span className="block px-2 py-1.5 text-sm" dir="auto">
+                {n.title}
+              </span>
+            )}
             <Outline parentKey={n.id} depth={depth + 1} />
           </li>
         ))}
