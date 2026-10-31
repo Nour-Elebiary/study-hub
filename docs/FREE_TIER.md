@@ -123,6 +123,7 @@ with the date and the official source before the code that uses it is merged.
 | 2026-10-29 | qrcode (+ @types/qrcode, dev) (M8 join-code QR on the access screen)                                                            | MIT          | Open-source QR generator that runs on the server; the join link never leaves the app, unlike hosted QR image services                      | https://github.com/soldair/node-qrcode     |
 | 2026-10-29 | jszip (M8 content export ZIP)                                                                                                   | MIT          | Open-source ZIP builder that runs on the server; no hosted service. Already present as a transitive dependency of mammoth                  | https://github.com/Stuk/jszip              |
 | 2026-10-29 | @axe-core/playwright (dev-only: M8 accessibility audit in the e2e suite)                                                        | MPL-2.0      | Open-source axe-core rules engine run inside the existing Playwright suite against the local build; nothing hosted, never shipped to users | https://github.com/dequelabs/axe-core-npm  |
+| 2026-10-30 | @dagrejs/dagre (M9 canvas auto-layout for generated maps)                                                                        | MIT          | Open-source graph layout library that runs in the browser; no hosted service. Used only when a canvas is generated from the content tree — saved positions always win afterwards | https://github.com/dagrejs/dagre           |
 
 ## Home Worker (M6) — Python packages and desktop tools
 
