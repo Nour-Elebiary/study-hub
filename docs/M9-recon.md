@@ -39,3 +39,26 @@ intent. Questions are logged in `docs/QUESTIONS.md`.
 | V6 | `canvas_edit_can → owner + editor` (RLS test 7 draft)  | **Confirmed decision (QUESTIONS #31): edits = every team level** — `admin OR any valid course_members row`; students and strangers read published only. |
 | V7 | strict zod uuid                                        | Seed ids (`cccccccc-…`, `eeee…`, and the canvas test ids) are not RFC 4122; the schemas use the relaxed hex pattern (`uuidLike`, QUESTIONS #19/#42). |
 | V8 | new dependency `@dagrejs/dagre`                        | Not present today — added in M9 (MIT, recorded in docs/FREE_TIER.md) because spec §5.1 uses dagre for auto-layout.           |
+
+## Lighthouse baseline (before any canvas code)
+
+Spec §12.1 rule: record the performance baseline before the canvas work so
+M9 can prove the new pages did not make anything slower. This machine has no
+Docker, so the baseline could not use the local Supabase stack (the capsule
+CI job does); it was measured against a production build
+(`npm run build` + `npm run start`) pointed at the hosted project, with the
+student join cookie minted exactly the way the CI job does it. Two runs each
+on `/s` and `/s/notes/…003` at the default (mobile) Lighthouse profile.
+
+| Page        | Run 1 (cold server + remote DB) | Run 2 (warm) | CI bar |
+| ----------- | ------------------------------- | ------------ | ------ |
+| `/s`        | 92/100                          | —            | ≥ 90   |
+| `/s/notes/eeeeeeee-0000-eeee-0000-000000000003` | 73/100      | 94/100       | ≥ 90   |
+
+Notes: the cold `/s/notes` run is dominated by first-byte streaming against
+the remote database (LCP 3.3 s) — the warm rerun is 2.7 s with
+160 ms total blocking time and meets the bar with margin, matching the green
+CI check, which runs against the local database with three attempts.
+M9's acceptance for this baseline: every new student page (only the canvas
+viewer, which loads its bundle with `next/dynamic`) must not degrade these
+scores; the same script and bar run in CI after the work.
