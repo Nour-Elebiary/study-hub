@@ -372,7 +372,64 @@ export const settingsUpdateSchema = z.object({
   ai_daily_allowance_per_leader: z.coerce.number().int().min(0).max(10_000),
   db_limit_mb: z.coerce.number().int().min(100).max(10_000),
   storage_limit_mb: z.coerce.number().int().min(100).max(10_000),
+  // M9 canvas and later-milestone keys (spec section 10).
+  max_canvas_cards: z.coerce.number().int().min(20).max(1000),
+  max_canvases_per_course: z.coerce.number().int().min(1).max(100),
+  canvas_version_keep_auto: z.coerce.number().int().min(5).max(100),
+  canvas_import_max_kb: z.coerce.number().int().min(64).max(4096),
+  vault_export_max_mb: z.coerce.number().int().min(10).max(500),
+  realtime_enabled: z.coerce.number().int().min(0).max(1),
+  max_live_editors_per_canvas: z.coerce.number().int().min(1).max(10),
+  max_events_per_course: z.coerce.number().int().min(10).max(1000),
+  retention_view_counts_days: z.coerce.number().int().min(30).max(1095),
   password: z.string().optional(),
 });
 
 export type SettingsUpdateValues = z.infer<typeof settingsUpdateSchema>;
+
+// ---------------------------------------------------------------------------
+// M9 canvas (spec section 5.5) — server-request shapes for the map actions.
+// The op wire schema itself lives in canvas/schemas.ts.
+// ---------------------------------------------------------------------------
+
+export const createCanvasSchema = z.object({
+  course_id: z.uuid("Pick a course first."),
+  title: z.string().trim().min(1, "Give the map a name.").max(120, "Keep the name under 120 characters."),
+});
+
+export const canvasDeleteSchema = z.object({
+  canvas_id: z.uuid(),
+  confirm_title: z.string().optional(),
+});
+
+export const publishCanvasSchema = z.object({
+  canvas_id: z.uuid(),
+  published: z.boolean(),
+});
+
+export const defaultCanvasSchema = z.object({
+  course_id: z.uuid(),
+  canvas_id: z.uuid(),
+});
+
+export const canvasLegendSchema = z.record(
+  z.enum(["1", "2", "3", "4", "5", "6"]),
+  z.string().trim().min(1, "Describe what the colour means.").max(80),
+);
+
+export const canvasViewportSchema = z.object({
+  canvas_id: z.uuid(),
+  x: z.number(),
+  y: z.number(),
+  zoom: z.number().min(0.1).max(2),
+});
+
+export const canvasVersionSaveSchema = z.object({
+  canvas_id: z.uuid(),
+  label: z.string().trim().max(120).optional(),
+});
+
+export const canvasVersionRestoreSchema = z.object({
+  canvas_id: z.uuid(),
+  version_id: z.uuid(),
+});
