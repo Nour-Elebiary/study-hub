@@ -9,6 +9,9 @@ import {
   applyCanvasOps,
   createCanvas,
   getCourseTree,
+  listCourseFiles,
+  listCourseNotes,
+  listVersions,
   restoreCanvas,
   restoreVersion,
   saveVersion,
@@ -345,6 +348,68 @@ export async function restoreVersionAction(
   }
   revalidateCourse(courseId, parsed.data.canvas_id);
   return { ok: true, canvasId: parsed.data.canvas_id };
+}
+
+/** The backup list for the Versions sheet (client opens it on demand). */
+export async function listVersionsAction(
+  canvasId: string,
+): Promise<
+  | {
+      ok: true;
+      versions: {
+        id: string;
+        versionNo: number;
+        label: string | null;
+        auto: boolean;
+        createdAt: string;
+      }[];
+    }
+  | { error: string }
+> {
+  await requireSession();
+  const courseId = await courseOf(canvasId);
+  if (!courseId || !(await canEdit(courseId))) {
+    return { error: "You are not allowed to edit this map." };
+  }
+  return { ok: true, versions: await listVersions(canvasId) };
+}
+
+/** Note picker list for "Add note" (only notes of this course). */
+export async function listPickerNotesAction(
+  courseId: string,
+): Promise<
+  { ok: true; notes: { id: string; title: string; area: string; published: boolean }[] }
+  | { error: string }
+> {
+  await requireSession();
+  if (!(await canEdit(courseId))) {
+    return { error: "You are not allowed to edit this course." };
+  }
+  return { ok: true, notes: await listCourseNotes(courseId) };
+}
+
+/** File picker list for "Add file" (only files of this course). */
+export async function listPickerFilesAction(
+  courseId: string,
+): Promise<
+  | {
+      ok: true;
+      files: {
+        id: string;
+        title: string;
+        kind: string;
+        bytes: number | null;
+        visible: boolean;
+        downloadable: boolean;
+      }[];
+    }
+  | { error: string }
+> {
+  await requireSession();
+  if (!(await canEdit(courseId))) {
+    return { error: "You are not allowed to edit this course." };
+  }
+  return { ok: true, files: await listCourseFiles(courseId) };
 }
 
 // ---------------------------------------------------------------------------

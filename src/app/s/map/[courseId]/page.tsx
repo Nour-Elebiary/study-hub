@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireStudentScope } from "@/lib/student-access";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getStudentDefaultCanvas } from "@/lib/dal-canvas";
 
 export const metadata: Metadata = { title: "Outline — Study Hub" };
 
@@ -36,6 +37,12 @@ export default async function StudentMapPage({
   if (!scope.scope.all && !scope.scope.courseIds.includes(courseId)) {
     notFound();
   }
+
+  // Spec 5.7 / D9: if the course has a published default canvas map, the
+  // students' Map entry point goes straight there; the outline stays
+  // reachable at this URL.
+  const defaultCanvas = await getStudentDefaultCanvas(courseId, scope);
+  if (defaultCanvas) redirect(`/s/canvas/${defaultCanvas.id}`);
 
   const { data: rows } = await admin
     .from("nodes")

@@ -55,6 +55,8 @@ export type ResolvedNote = {
   published: boolean;
   /** The note is soft-deleted (leaders see a ghost "Deleted note" card). */
   deleted: boolean;
+  /** First ~300 characters of the PUBLISHED body (never the draft). */
+  preview: string | null;
 };
 
 export type ResolvedFile = {
@@ -67,6 +69,8 @@ export type ResolvedFile = {
   visible: boolean;
   /** Students may download it. */
   downloadable: boolean;
+  /** Storage path or URL (leaders sign image URLs for thumbnails). */
+  pathOrUrl: string;
 };
 
 export type CanvasDetail = {
@@ -309,6 +313,7 @@ async function resolveTargets(
       .from("nodes")
       .select("id, title, slug, area, published_version_id, deleted_at")
       .in("id", noteIds);
+    const versionOfNote = new Map<string, string | null>();
     for (const row of data ?? []) {
       notes[row.id] = {
         id: row.id,
@@ -320,7 +325,28 @@ async function resolveTargets(
           row.published_version_id !== null &&
           row.published_version_id !== undefined,
         deleted: Boolean(row.deleted_at),
+        preview: null,
       };
+      versionOfNote.set(row.id, row.published_version_id);
+    }
+
+    // Query 3: the published bodies for the card previews. Only published
+    // versions are read — a note's draft body never reaches a canvas — and
+    // only the first 300 characters are kept.
+    const versionIds = [...versionOfNote.values()].filter(
+      (v): v is string => typeof v === "string",
+    );
+    if (versionIds.length > 0) {
+      const { data: versions } = await supabase
+        .from("node_versions")
+        .select("id, node_id, body_md")
+        .in("id", versionIds);
+      for (const version of versions ?? []) {
+        const note = notes[version.node_id];
+        if (note) {
+          note.preview = version.body_md.slice(0, 300);
+        }
+      }
     }
   }
   if (fileIds.length > 0) {
@@ -340,6 +366,7 @@ async function resolveTargets(
         bytes: row.size_bytes,
         visible: Boolean(row.student_visible),
         downloadable: Boolean(row.student_downloadable),
+        pathOrUrl: row.path_or_url,
       };
     }
   }
@@ -863,4 +890,69 @@ export async function getCourseTree(
     home: home ? { id: home.id, title: home.title } : null,
     sections,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Picker lists (spec 5.6: "add a note or file card from a picker list")
+// ---------------------------------------------------------------------------
+
+export type PickerNote = {
+  id: string;
+  title: string;
+  area: string;
+  published: boolean;
+};
+
+export type PickerFile = {
+  id: string;
+  title: string;
+  kind: string;
+  bytes: number | null;
+  /** Hidden files never reach the student viewer. */
+  visible: boolean;
+  downloadable: boolean;
+};
+
+/** Live notes of the course in stored order (the note picker). */
+export async function listCourseNotes(
+  courseId: string,
+): Promise<PickerNote[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("nodes")
+    .select("id, title, area, published_version_id, deleted_at")
+    .eq("course_id", courseId)
+    .eq("kind", "note")
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true });
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    title: row.title,
+    area: row.area,
+    published: row.published_version_id !== null,
+  }));
+}
+
+/** Live assets of the course, newest first (the file picker). */
+export async function listCourseFiles(
+  courseId: string,
+): Promise<PickerFile[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("assets")
+    .select(
+      "id, title, kind, size_bytes, student_visible, student_downloadable, created_at",
+    )
+    .eq("course_id", courseId)
+    .eq("storage", "supabase")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    title: row.title,
+    kind: row.kind,
+    bytes: row.size_bytes,
+    visible: Boolean(row.student_visible),
+    downloadable: Boolean(row.student_downloadable),
+  }));
 }
