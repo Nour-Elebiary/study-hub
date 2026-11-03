@@ -394,7 +394,11 @@ export type SettingsUpdateValues = z.infer<typeof settingsUpdateSchema>;
 
 export const createCanvasSchema = z.object({
   course_id: z.uuid("Pick a course first."),
-  title: z.string().trim().min(1, "Give the map a name.").max(120, "Keep the name under 120 characters."),
+  title: z
+    .string()
+    .trim()
+    .min(1, "Give the map a name.")
+    .max(120, "Keep the name under 120 characters."),
 });
 
 export const canvasDeleteSchema = z.object({

@@ -72,7 +72,7 @@ function CanvasNodeInner(props: NodeProps<CanvasFlowNode>) {
   const zoom = useStore((store) => store.transform[2]);
   const detailed = zoom >= LOD_ZOOM;
 
-  const title = function () {
+  const title = (function () {
     switch (card.kind) {
       case "note":
         return card.label || data.note?.title || "Note";
@@ -85,7 +85,7 @@ function CanvasNodeInner(props: NodeProps<CanvasFlowNode>) {
       default:
         return null;
     }
-  }();
+  })();
 
   const detail = detailed ? (
     card.kind === "note" ? (

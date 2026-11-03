@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  canvasOp,
-  canvasOps,
-} from "@/lib/canvas/schemas";
+import { canvasOp, canvasOps } from "@/lib/canvas/schemas";
 
 const SITE_ID = "cccccccc-0000-cccc-0000-000000000001"; // seed id, not RFC UUID (#19)
 
@@ -31,7 +28,9 @@ describe("uuidLike / card ids", () => {
     expect(
       canvasOp.safeParse({ op: "node.delete", id: "not-a-uuid" }).success,
     ).toBe(false);
-    expect(canvasOp.safeParse({ op: "node.delete", id: "" }).success).toBe(false);
+    expect(canvasOp.safeParse({ op: "node.delete", id: "" }).success).toBe(
+      false,
+    );
   });
 });
 
@@ -65,8 +64,22 @@ describe("httpUrl", () => {
   });
 
   it("rejects data: and bare protocol-only strings (real URL parse)", () => {
-    for (const url of ["data:text/html,<b>x</b>", "https://", "not a url", "https://"]) {
-      const op = { op: "node.add", id: "11111111-2222-3333-4444-555555555552", kind: "link", url, x: 0, y: 0, width: 260, height: 90 };
+    for (const url of [
+      "data:text/html,<b>x</b>",
+      "https://",
+      "not a url",
+      "https://",
+    ]) {
+      const op = {
+        op: "node.add",
+        id: "11111111-2222-3333-4444-555555555552",
+        kind: "link",
+        url,
+        x: 0,
+        y: 0,
+        width: 260,
+        height: 90,
+      };
       expect(canvasOp.safeParse(op).success, url).toBe(false);
     }
   });
@@ -75,7 +88,10 @@ describe("httpUrl", () => {
 describe("node.add kind-reference rule", () => {
   it("accepts note / file / text / link / group shapes that match their kind", () => {
     expect(
-      canvasOp.safeParse({ ...baseAdd, id: "11111111-2222-3333-4444-555555555553" }).success,
+      canvasOp.safeParse({
+        ...baseAdd,
+        id: "11111111-2222-3333-4444-555555555553",
+      }).success,
     ).toBe(true);
     expect(
       canvasOp.safeParse({
@@ -109,7 +125,9 @@ describe("node.add kind-reference rule", () => {
 
   it("rejects a card whose reference does not match its kind", () => {
     // text without body
-    expect(canvasOp.safeParse({ ...baseAdd, body: undefined }).success).toBe(false);
+    expect(canvasOp.safeParse({ ...baseAdd, body: undefined }).success).toBe(
+      false,
+    );
     // note with an asset instead of a node
     expect(
       canvasOp.safeParse({
@@ -136,22 +154,38 @@ describe("node.add kind-reference rule", () => {
 describe("node.update", () => {
   it("accepts an explicit null colour or label (they clear the column)", () => {
     expect(
-      canvasOp.safeParse({ op: "node.update", id: SITE_ID, color: null, label: null }).success,
+      canvasOp.safeParse({
+        op: "node.update",
+        id: SITE_ID,
+        color: null,
+        label: null,
+      }).success,
     ).toBe(true);
   });
 
   it("rejects an explicit null body (it would break canvas_nodes_ref_by_kind)", () => {
-    expect(canvasOp.safeParse({ op: "node.update", id: SITE_ID, body: null }).success).toBe(false);
+    expect(
+      canvasOp.safeParse({ op: "node.update", id: SITE_ID, body: null })
+        .success,
+    ).toBe(false);
   });
 
   it("rejects an update that changes nothing", () => {
-    expect(canvasOp.safeParse({ op: "node.update", id: SITE_ID }).success).toBe(false);
+    expect(canvasOp.safeParse({ op: "node.update", id: SITE_ID }).success).toBe(
+      false,
+    );
   });
 
   it("rejects coordinates and sizes outside the allowed ranges", () => {
-    expect(canvasOp.safeParse({ op: "node.update", id: SITE_ID, x: 200000 }).success).toBe(false);
-    expect(canvasOp.safeParse({ op: "node.update", id: SITE_ID, x: 1e400 }).success).toBe(false);
-    expect(canvasOp.safeParse({ op: "node.update", id: SITE_ID, width: 10 }).success).toBe(false);
+    expect(
+      canvasOp.safeParse({ op: "node.update", id: SITE_ID, x: 200000 }).success,
+    ).toBe(false);
+    expect(
+      canvasOp.safeParse({ op: "node.update", id: SITE_ID, x: 1e400 }).success,
+    ).toBe(false);
+    expect(
+      canvasOp.safeParse({ op: "node.update", id: SITE_ID, width: 10 }).success,
+    ).toBe(false);
   });
 });
 
@@ -168,8 +202,13 @@ describe("edges", () => {
   });
 
   it("rejects an edge.update that changes nothing, accepts a null label", () => {
-    expect(canvasOp.safeParse({ op: "edge.update", id: SITE_ID }).success).toBe(false);
-    expect(canvasOp.safeParse({ op: "edge.update", id: SITE_ID, label: null }).success).toBe(true);
+    expect(canvasOp.safeParse({ op: "edge.update", id: SITE_ID }).success).toBe(
+      false,
+    );
+    expect(
+      canvasOp.safeParse({ op: "edge.update", id: SITE_ID, label: null })
+        .success,
+    ).toBe(true);
   });
 });
 

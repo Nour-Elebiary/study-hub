@@ -17,7 +17,7 @@ export default function SaveStatusChip({
     return (
       <span
         role="status"
-        className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium"
+        className="border-border rounded-full border px-2.5 py-1 text-[11px] font-medium"
       >
         Saved
       </span>
@@ -28,7 +28,7 @@ export default function SaveStatusChip({
       <span
         role="status"
         aria-live="polite"
-        className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium opacity-80"
+        className="border-border rounded-full border px-2.5 py-1 text-[11px] font-medium opacity-80"
       >
         Saving…
       </span>
@@ -38,14 +38,14 @@ export default function SaveStatusChip({
     <span className="flex items-center gap-1.5">
       <span
         role="alert"
-        className="bg-destructive/10 text-destructive rounded-full border border-destructive/40 px-2.5 py-1 text-[11px] font-semibold"
+        className="bg-destructive/10 text-destructive border-destructive/40 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
       >
         Could not save
       </span>
       <button
         type="button"
         onClick={onRetry}
-        className="bg-destructive/10 text-destructive rounded-full border border-destructive/40 px-2.5 py-1 text-[11px] font-semibold"
+        className="bg-destructive/10 text-destructive border-destructive/40 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
       >
         Try again
       </button>

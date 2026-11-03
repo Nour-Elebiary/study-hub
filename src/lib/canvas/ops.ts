@@ -24,7 +24,12 @@
  * node.delete/node.add pairs; `invertOps` simply omits a null-body restore.
  */
 import type { CanvasOp } from "./schemas";
-import type { EdgeAddOp, EdgeUpdateOp, NodeAddOp, NodeUpdateOp } from "./schemas";
+import type {
+  EdgeAddOp,
+  EdgeUpdateOp,
+  NodeAddOp,
+  NodeUpdateOp,
+} from "./schemas";
 import { CARD_DEFAULT_SIZE } from "./defaults";
 import type { CanvasCard, CanvasEdge, CanvasState } from "./types";
 
@@ -82,7 +87,8 @@ function applyOne(
       if (op.body !== undefined) card.body = op.body;
       if (op.label !== undefined) card.label = op.label; // null clears
       if (op.url !== undefined) card.url = op.url; // null clears
-      if (op.student_visible !== undefined) card.studentVisible = op.student_visible;
+      if (op.student_visible !== undefined)
+        card.studentVisible = op.student_visible;
       return true;
     }
     case "node.delete": {
@@ -97,7 +103,8 @@ function applyOne(
     case "edge.add": {
       // Endpoints must exist locally (the database enforces this with a
       // foreign key and would fail the whole batch; the mirror forgives).
-      if (edges[op.id] || !cards[op.from_node] || !cards[op.to_node]) return false;
+      if (edges[op.id] || !cards[op.from_node] || !cards[op.to_node])
+        return false;
       edges[op.id] = edgeFromOp(op, op.id);
       return true;
     }
@@ -178,9 +185,11 @@ export function invertOps(
   ops: readonly CanvasOp[],
 ): CanvasOp[] {
   const cards: Record<string, CanvasCard> = {};
-  for (const [id, card] of Object.entries(before.cards)) cards[id] = { ...card };
+  for (const [id, card] of Object.entries(before.cards))
+    cards[id] = { ...card };
   const edges: Record<string, CanvasEdge> = {};
-  for (const [id, edge] of Object.entries(before.edges)) edges[id] = { ...edge };
+  for (const [id, edge] of Object.entries(before.edges))
+    edges[id] = { ...edge };
 
   // One undo group per applied op, in forward order; the returned list is
   // the concatenation of the groups in reverse (spec: reverse order).
@@ -218,10 +227,15 @@ export function invertOps(
           if (op.color !== undefined) back.color = card.color; // null restores null
           if (op.label !== undefined) back.label = card.label; // null restores null
           if (op.url !== undefined) back.url = card.url; // null restores null
-          if (op.student_visible !== undefined) back.student_visible = card.studentVisible;
+          if (op.student_visible !== undefined)
+            back.student_visible = card.studentVisible;
           // body: only restorable when the previous body was a string (see
           // module comment about the body-clearing asymmetry).
-          if (op.body !== undefined && card.body !== null && card.body !== undefined) {
+          if (
+            op.body !== undefined &&
+            card.body !== null &&
+            card.body !== undefined
+          ) {
             back.body = card.body;
           }
           if (Object.keys(back).length > 2) undo.push(back);
@@ -280,5 +294,6 @@ export function invertOps(
 }
 
 /** Default size for a card kind — used by add flows, not by the op schema. */
-export const defaultSizeOf = (kind: keyof typeof CARD_DEFAULT_SIZE): { width: number; height: number } =>
-  CARD_DEFAULT_SIZE[kind];
+export const defaultSizeOf = (
+  kind: keyof typeof CARD_DEFAULT_SIZE,
+): { width: number; height: number } => CARD_DEFAULT_SIZE[kind];

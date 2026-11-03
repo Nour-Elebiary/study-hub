@@ -133,13 +133,13 @@ function CanvasWire(props: EdgeProps<CanvasFlowEdge>) {
                   className="w-full rounded border px-1.5 py-1 text-[11px]"
                   onChange={(event) => {
                     const value = event.target.value.trim();
-                    queueOps([
-                      { op: "edge.update", id, label: value || null },
-                    ]);
+                    queueOps([{ op: "edge.update", id, label: value || null }]);
                   }}
                 />
                 <div className="mt-1 flex items-center gap-1">
-                  <span className="text-muted-foreground text-[10px]">Colour</span>
+                  <span className="text-muted-foreground text-[10px]">
+                    Colour
+                  </span>
                   <select
                     aria-label="Arrow colour"
                     defaultValue={colour ?? ""}
@@ -150,9 +150,7 @@ function CanvasWire(props: EdgeProps<CanvasFlowEdge>) {
                         {
                           op: "edge.update",
                           id,
-                          color: value
-                            ? (value as CanvasColor)
-                            : null,
+                          color: value ? (value as CanvasColor) : null,
                         },
                       ]);
                     }}

@@ -83,14 +83,16 @@ export default function VersionsSheet({
       <h2 className="text-sm font-bold">Backups of this map</h2>
       <p className="text-muted-foreground mt-1 mb-3 text-xs">
         The app saves a backup automatically at most every 30 minutes of
-        editing. Name one yourself before a big change — named backups are
-        never deleted.
+        editing. Name one yourself before a big change — named backups are never
+        deleted.
       </p>
 
       <form
         action={async (formData: FormData) => {
           if (!formData.get("label")) {
-            setError("Give the backup a name first, for example \"Before exam week\".");
+            setError(
+              'Give the backup a name first, for example "Before exam week".',
+            );
             return;
           }
           setBusy(true);

@@ -14,12 +14,12 @@ This is the single source of truth for the next five milestones of Study Hub. It
 
 ## 1. Goals and non-goals
 
-| # | Goal | Milestone |
-| --- | --- | --- |
-| 1 | A persisted, editable infinite canvas where leaders connect, create, edit, delete and organise notes and files while keeping the mind-map | M9, M10 |
-| 2 | Colour, theme, UI and UX overhaul for phone, tablet, desktop and the installed PWA | M11 |
-| 3 | Obsidian-style knowledge links: wikilinks, backlinks, graph, JSON Canvas import/export, Obsidian vault export, better Arabic search | M12 |
-| 4 | Live co-working for leaders and free study tools for students | M13 |
+| #   | Goal                                                                                                                                      | Milestone |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| 1   | A persisted, editable infinite canvas where leaders connect, create, edit, delete and organise notes and files while keeping the mind-map | M9, M10   |
+| 2   | Colour, theme, UI and UX overhaul for phone, tablet, desktop and the installed PWA                                                        | M11       |
+| 3   | Obsidian-style knowledge links: wikilinks, backlinks, graph, JSON Canvas import/export, Obsidian vault export, better Arabic search       | M12       |
+| 4   | Live co-working for leaders and free study tools for students                                                                             | M13       |
 
 **Non-goals (v1):** no paid service of any kind; no student accounts; no offline editing or CRDT; no AI writing into published content without leader review; no remote images, link unfurling or third-party analytics; no native apps.
 
@@ -42,42 +42,42 @@ If `AGENTS.md` numbers these rules differently, follow `AGENTS.md`.
 
 ## 3. Product decisions (already made)
 
-| ID | Decision | Why |
-| --- | --- | --- |
-| D1 | **Cards are views, not copies.** A card references a note or a file. “Remove from canvas” deletes only the card; “Delete note/file” is a separate action with the existing soft-delete rules. | Non-technical leaders must never lose content by tidying a map. |
-| D2 | Canvas data is **normalised rows** (`canvas_nodes`, `canvas_edges`), not one JSON blob. A JSON snapshot is stored only in `canvas_versions`. | RLS per card, per-card realtime, small writes. |
-| D3 | Fields mirror the open **JSON Canvas** format (text/file/link/group nodes; edges with sides and ends; colours 1–6). | Free Obsidian interoperability in M12. |
-| D4 | **Groups are plain rectangles.** Membership is by geometry. “Move group with its contents” is client behaviour at drag start. | Matches JSON Canvas; no parent column. |
-| D5 | **All structural writes go through one RPC**, `canvas_apply_ops` (atomic, at most 200 ops). | One choke point for caps, validation and `rev`. |
-| D6 | Concurrent edits are **last-write-wins per card**. No CRDT in v1. | Leaders are few; simple and predictable. |
-| D7 | Who edits canvases: **admin, course owner, course editor.** Contributors and reviewers read. | A map is shared structure. (Open: confirm with Nour; QUESTIONS.) |
-| D8 | Student view is read-only. Cards whose note is unpublished or whose file is not student-visible, and edges touching them, are **invisible at the RLS level**. | “Students cannot even find out those pages exist.” |
-| D9 | The **outline (tree) view stays** and is the accessible alternative. On screens under 768 px the outline is the default; the canvas is one tap away. | An infinite canvas on a 360 px phone is a poor default. |
-| D10 | The existing `/courses/[courseId]/map` stays until M10 is accepted, then redirects to the default canvas. | No regression while building. |
-| D11 | No remote images, favicons or link previews in cards. Markdown images only from the app’s own signed storage URLs. | CSP and privacy (QUESTIONS #23). |
-| D12 | Wikilinks are **plain text** `[[Title]]` in the Markdown body, resolved at render time. | Zero TipTap serialisation risk; Obsidian-compatible. |
-| D13 | Themes use `data-theme` on `<html>` plus CSS variables. A course accent comes from a **preset list only**. | Contrast can be guaranteed by a script. |
-| D14 | Realtime is for **leaders only**. Students refresh on focus. | Protects the free Realtime connection budget. |
-| D15 | Leader theme and student theme are stored on the device (`localStorage`). | No schema change, works for students. |
+| ID  | Decision                                                                                                                                                                                      | Why                                                              |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| D1  | **Cards are views, not copies.** A card references a note or a file. “Remove from canvas” deletes only the card; “Delete note/file” is a separate action with the existing soft-delete rules. | Non-technical leaders must never lose content by tidying a map.  |
+| D2  | Canvas data is **normalised rows** (`canvas_nodes`, `canvas_edges`), not one JSON blob. A JSON snapshot is stored only in `canvas_versions`.                                                  | RLS per card, per-card realtime, small writes.                   |
+| D3  | Fields mirror the open **JSON Canvas** format (text/file/link/group nodes; edges with sides and ends; colours 1–6).                                                                           | Free Obsidian interoperability in M12.                           |
+| D4  | **Groups are plain rectangles.** Membership is by geometry. “Move group with its contents” is client behaviour at drag start.                                                                 | Matches JSON Canvas; no parent column.                           |
+| D5  | **All structural writes go through one RPC**, `canvas_apply_ops` (atomic, at most 200 ops).                                                                                                   | One choke point for caps, validation and `rev`.                  |
+| D6  | Concurrent edits are **last-write-wins per card**. No CRDT in v1.                                                                                                                             | Leaders are few; simple and predictable.                         |
+| D7  | Who edits canvases: **admin, course owner, course editor.** Contributors and reviewers read.                                                                                                  | A map is shared structure. (Open: confirm with Nour; QUESTIONS.) |
+| D8  | Student view is read-only. Cards whose note is unpublished or whose file is not student-visible, and edges touching them, are **invisible at the RLS level**.                                 | “Students cannot even find out those pages exist.”               |
+| D9  | The **outline (tree) view stays** and is the accessible alternative. On screens under 768 px the outline is the default; the canvas is one tap away.                                          | An infinite canvas on a 360 px phone is a poor default.          |
+| D10 | The existing `/courses/[courseId]/map` stays until M10 is accepted, then redirects to the default canvas.                                                                                     | No regression while building.                                    |
+| D11 | No remote images, favicons or link previews in cards. Markdown images only from the app’s own signed storage URLs.                                                                            | CSP and privacy (QUESTIONS #23).                                 |
+| D12 | Wikilinks are **plain text** `[[Title]]` in the Markdown body, resolved at render time.                                                                                                       | Zero TipTap serialisation risk; Obsidian-compatible.             |
+| D13 | Themes use `data-theme` on `<html>` plus CSS variables. A course accent comes from a **preset list only**.                                                                                    | Contrast can be guaranteed by a script.                          |
+| D14 | Realtime is for **leaders only**. Students refresh on focus.                                                                                                                                  | Protects the free Realtime connection budget.                    |
+| D15 | Leader theme and student theme are stored on the device (`localStorage`).                                                                                                                     | No schema change, works for students.                            |
 
 ## 4. Step 0 — Reconnaissance **\[RECON\]** (before writing any SQL or code)
 
-Read the files below and write the findings into a new file `docs/M9-recon.md` (a table: *question → answer → file and line*). If an answer contradicts an assumption in this document, stop, write it in `docs/QUESTIONS.md`, and adapt using the simplest safe option.
+Read the files below and write the findings into a new file `docs/M9-recon.md` (a table: _question → answer → file and line_). If an answer contradicts an assumption in this document, stop, write it in `docs/QUESTIONS.md`, and adapt using the simplest safe option.
 
-| ID | Find out | Look in |
-| --- | --- | --- |
-| R1 | Exact names and signatures of the course-access helpers (`can_access_course(...)` and any write/staff helper) and how `nodes` INSERT/UPDATE policies use them | `00001`, `00005`, `00006` |
-| R2 | Column names of `course_members` (user column, role column and role values) and `profiles.role` | `00001`, `00002` |
-| R3 | Columns of `nodes` (kind/area enums, `deleted_at`, `published_version_id`, `slug`, `created_by` type) and of `assets` (`student_visible`, `student_downloadable`, `ai_allowed`, storage path) | `00005`, `00006` |
-| R4 | The `set_updated_at` trigger function and how other tables attach it | `00016` |
-| R5 | Shape of the `settings` table and its reader RPC; how `src/lib/settings.ts` registers a key | `00002`, `src/lib/settings.ts` |
-| R6 | How students are evaluated in SQL and in the DAL (cookie → memberships → `can_access_course`); the function that lists a student’s nodes | `src/lib/student-access.ts`, `src/lib/dal.ts`, `00007` |
-| R7 | The storage helper that creates signed download URLs and the upload helper (magic-byte check, size limit, allow-list) | `src/lib/storage.ts`, `src/lib/file-allowlist.ts` |
-| R8 | The public API of `src/lib/mind-map.ts` and the page `/courses/[courseId]/map` | `src/lib/mind-map.ts`, `src/app/(leader)/courses/[courseId]/map` |
-| R9 | How `scripts/test-rls.mjs` builds fixtures, numbers tests (the last test number) and which seed users exist | `scripts/test-rls.mjs`, seed files |
-| R10 | How Playwright tests sign in as leader/admin and join as student; fixture helpers; axe helper | `e2e/` or `tests/` |
-| R11 | The inline script in the root layout (text-size) and the `<html>` attributes it sets | `src/app/layout.tsx` |
-| R12 | How `rate-limit.ts` registers a purpose; how `audit.ts` is called | `src/lib/rate-limit.ts`, `src/lib/audit.ts` |
+| ID  | Find out                                                                                                                                                                                      | Look in                                                          |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| R1  | Exact names and signatures of the course-access helpers (`can_access_course(...)` and any write/staff helper) and how `nodes` INSERT/UPDATE policies use them                                 | `00001`, `00005`, `00006`                                        |
+| R2  | Column names of `course_members` (user column, role column and role values) and `profiles.role`                                                                                               | `00001`, `00002`                                                 |
+| R3  | Columns of `nodes` (kind/area enums, `deleted_at`, `published_version_id`, `slug`, `created_by` type) and of `assets` (`student_visible`, `student_downloadable`, `ai_allowed`, storage path) | `00005`, `00006`                                                 |
+| R4  | The `set_updated_at` trigger function and how other tables attach it                                                                                                                          | `00016`                                                          |
+| R5  | Shape of the `settings` table and its reader RPC; how `src/lib/settings.ts` registers a key                                                                                                   | `00002`, `src/lib/settings.ts`                                   |
+| R6  | How students are evaluated in SQL and in the DAL (cookie → memberships → `can_access_course`); the function that lists a student’s nodes                                                      | `src/lib/student-access.ts`, `src/lib/dal.ts`, `00007`           |
+| R7  | The storage helper that creates signed download URLs and the upload helper (magic-byte check, size limit, allow-list)                                                                         | `src/lib/storage.ts`, `src/lib/file-allowlist.ts`                |
+| R8  | The public API of `src/lib/mind-map.ts` and the page `/courses/[courseId]/map`                                                                                                                | `src/lib/mind-map.ts`, `src/app/(leader)/courses/[courseId]/map` |
+| R9  | How `scripts/test-rls.mjs` builds fixtures, numbers tests (the last test number) and which seed users exist                                                                                   | `scripts/test-rls.mjs`, seed files                               |
+| R10 | How Playwright tests sign in as leader/admin and join as student; fixture helpers; axe helper                                                                                                 | `e2e/` or `tests/`                                               |
+| R11 | The inline script in the root layout (text-size) and the `<html>` attributes it sets                                                                                                          | `src/app/layout.tsx`                                             |
+| R12 | How `rate-limit.ts` registers a purpose; how `audit.ts` is called                                                                                                                             | `src/lib/rate-limit.ts`, `src/lib/audit.ts`                      |
 
 **Placeholders in this document:** where SQL or code uses a name from R1–R12 that may differ in the repo, it is written in the form `/* R1 */`. Replace it with the real name.
 
@@ -497,11 +497,11 @@ Create these pure modules (no React, no Supabase, no `server-only`) so server an
 
 ```ts
 // src/lib/canvas/schemas.ts
-import { z } from 'zod';
+import { z } from "zod";
 
-export const CARD_KINDS = ['note', 'file', 'text', 'link', 'group'] as const;
-export const SIDES = ['top', 'right', 'bottom', 'left'] as const;
-export const CANVAS_COLORS = ['1', '2', '3', '4', '5', '6'] as const;
+export const CARD_KINDS = ["note", "file", "text", "link", "group"] as const;
+export const SIDES = ["top", "right", "bottom", "left"] as const;
+export const CANVAS_COLORS = ["1", "2", "3", "4", "5", "6"] as const;
 
 // Relaxed on purpose: seed ids are not RFC UUIDs (QUESTIONS #19).
 export const uuidLike = z
@@ -514,70 +514,111 @@ export const canvasColor = z.enum(CANVAS_COLORS);
 const coord = z.number().finite().min(-100000).max(100000);
 const cardWidth = z.number().finite().min(40).max(4000);
 const cardHeight = z.number().finite().min(30).max(4000);
-const httpUrl = z.string().max(2048).regex(/^https?:\/\//i); // plus new URL() parse in a refine
-const edgeEnd = z.enum(['none', 'arrow']);
+const httpUrl = z
+  .string()
+  .max(2048)
+  .regex(/^https?:\/\//i); // plus new URL() parse in a refine
+const edgeEnd = z.enum(["none", "arrow"]);
 
-const nodeAdd = z.object({
-  op: z.literal('node.add'),
-  id: uuidLike,
-  kind: cardKind,
-  node_id: uuidLike.optional(),
-  asset_id: uuidLike.optional(),
-  url: httpUrl.optional(),
-  x: coord, y: coord, width: cardWidth, height: cardHeight,
-  z: z.number().int().min(-1000).max(1000).optional(),
-  color: canvasColor.nullable().optional(),
-  body: z.string().max(20000).optional(),
-  label: z.string().max(200).optional(),
-  student_visible: z.boolean().optional(),
-}).superRefine((v, ctx) => {
-  // exactly the reference the kind needs (mirrors the SQL check constraint)
-  const ok =
-    (v.kind === 'note' && !!v.node_id && !v.asset_id && !v.url) ||
-    (v.kind === 'file' && !!v.asset_id && !v.node_id && !v.url) ||
-    (v.kind === 'link' && !!v.url && !v.node_id && !v.asset_id) ||
-    (v.kind === 'text' && v.body !== undefined && !v.node_id && !v.asset_id && !v.url) ||
-    (v.kind === 'group' && !v.node_id && !v.asset_id && !v.url);
-  if (!ok) ctx.addIssue({ code: 'custom', message: 'card reference does not match its kind' });
-});
+const nodeAdd = z
+  .object({
+    op: z.literal("node.add"),
+    id: uuidLike,
+    kind: cardKind,
+    node_id: uuidLike.optional(),
+    asset_id: uuidLike.optional(),
+    url: httpUrl.optional(),
+    x: coord,
+    y: coord,
+    width: cardWidth,
+    height: cardHeight,
+    z: z.number().int().min(-1000).max(1000).optional(),
+    color: canvasColor.nullable().optional(),
+    body: z.string().max(20000).optional(),
+    label: z.string().max(200).optional(),
+    student_visible: z.boolean().optional(),
+  })
+  .superRefine((v, ctx) => {
+    // exactly the reference the kind needs (mirrors the SQL check constraint)
+    const ok =
+      (v.kind === "note" && !!v.node_id && !v.asset_id && !v.url) ||
+      (v.kind === "file" && !!v.asset_id && !v.node_id && !v.url) ||
+      (v.kind === "link" && !!v.url && !v.node_id && !v.asset_id) ||
+      (v.kind === "text" &&
+        v.body !== undefined &&
+        !v.node_id &&
+        !v.asset_id &&
+        !v.url) ||
+      (v.kind === "group" && !v.node_id && !v.asset_id && !v.url);
+    if (!ok)
+      ctx.addIssue({
+        code: "custom",
+        message: "card reference does not match its kind",
+      });
+  });
 
-const nodeUpdate = z.object({
-  op: z.literal('node.update'),
-  id: uuidLike,
-  x: coord.optional(), y: coord.optional(),
-  width: cardWidth.optional(), height: cardHeight.optional(),
-  z: z.number().int().min(-1000).max(1000).optional(),
-  color: canvasColor.nullable().optional(),
-  body: z.string().max(20000).optional(),
-  label: z.string().max(200).nullable().optional(),
-  url: httpUrl.optional(),
-  student_visible: z.boolean().optional(),
-}).refine((v) => Object.keys(v).length > 2, { message: 'node.update needs at least one field' });
+const nodeUpdate = z
+  .object({
+    op: z.literal("node.update"),
+    id: uuidLike,
+    x: coord.optional(),
+    y: coord.optional(),
+    width: cardWidth.optional(),
+    height: cardHeight.optional(),
+    z: z.number().int().min(-1000).max(1000).optional(),
+    color: canvasColor.nullable().optional(),
+    body: z.string().max(20000).optional(),
+    label: z.string().max(200).nullable().optional(),
+    url: httpUrl.optional(),
+    student_visible: z.boolean().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 2, {
+    message: "node.update needs at least one field",
+  });
 
-const nodeDelete = z.object({ op: z.literal('node.delete'), id: uuidLike });
+const nodeDelete = z.object({ op: z.literal("node.delete"), id: uuidLike });
 
-const edgeAdd = z.object({
-  op: z.literal('edge.add'),
-  id: uuidLike, from_node: uuidLike, to_node: uuidLike,
-  from_side: side.optional(), to_side: side.optional(),
-  from_end: edgeEnd.optional(), to_end: edgeEnd.optional(),
-  label: z.string().max(200).optional(),
-  color: canvasColor.nullable().optional(),
-}).refine((v) => v.from_node !== v.to_node, { message: 'an edge cannot connect a card to itself' });
+const edgeAdd = z
+  .object({
+    op: z.literal("edge.add"),
+    id: uuidLike,
+    from_node: uuidLike,
+    to_node: uuidLike,
+    from_side: side.optional(),
+    to_side: side.optional(),
+    from_end: edgeEnd.optional(),
+    to_end: edgeEnd.optional(),
+    label: z.string().max(200).optional(),
+    color: canvasColor.nullable().optional(),
+  })
+  .refine((v) => v.from_node !== v.to_node, {
+    message: "an edge cannot connect a card to itself",
+  });
 
-const edgeUpdate = z.object({
-  op: z.literal('edge.update'),
-  id: uuidLike,
-  from_side: side.optional(), to_side: side.optional(),
-  from_end: edgeEnd.optional(), to_end: edgeEnd.optional(),
-  label: z.string().max(200).nullable().optional(),
-  color: canvasColor.nullable().optional(),
-}).refine((v) => Object.keys(v).length > 2, { message: 'edge.update needs at least one field' });
+const edgeUpdate = z
+  .object({
+    op: z.literal("edge.update"),
+    id: uuidLike,
+    from_side: side.optional(),
+    to_side: side.optional(),
+    from_end: edgeEnd.optional(),
+    to_end: edgeEnd.optional(),
+    label: z.string().max(200).nullable().optional(),
+    color: canvasColor.nullable().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 2, {
+    message: "edge.update needs at least one field",
+  });
 
-const edgeDelete = z.object({ op: z.literal('edge.delete'), id: uuidLike });
+const edgeDelete = z.object({ op: z.literal("edge.delete"), id: uuidLike });
 
-export const canvasOp = z.discriminatedUnion('op', [
-  nodeAdd, nodeUpdate, nodeDelete, edgeAdd, edgeUpdate, edgeDelete,
+export const canvasOp = z.discriminatedUnion("op", [
+  nodeAdd,
+  nodeUpdate,
+  nodeDelete,
+  edgeAdd,
+  edgeUpdate,
+  edgeDelete,
 ]);
 export const canvasOps = z.array(canvasOp).min(1).max(200);
 export type CanvasOp = z.infer<typeof canvasOp>;
@@ -587,18 +628,33 @@ If zod 4 rejects refined objects inside `discriminatedUnion`, wrap the refinemen
 
 ```ts
 // src/lib/canvas/types.ts (client + server state shape)
-import type { CardKind, Side, CanvasColor } from './schemas';
+import type { CardKind, Side, CanvasColor } from "./schemas";
 export type CanvasCard = {
-  id: string; kind: CardKind;
-  nodeId: string | null; assetId: string | null; url: string | null;
-  x: number; y: number; width: number; height: number; z: number;
-  color: CanvasColor | null; body: string | null; label: string | null;
+  id: string;
+  kind: CardKind;
+  nodeId: string | null;
+  assetId: string | null;
+  url: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  color: CanvasColor | null;
+  body: string | null;
+  label: string | null;
   studentVisible: boolean;
 };
 export type CanvasEdge = {
-  id: string; from: string; to: string; fromSide: Side; toSide: Side;
-  fromEnd: 'none' | 'arrow'; toEnd: 'none' | 'arrow';
-  label: string | null; color: CanvasColor | null;
+  id: string;
+  from: string;
+  to: string;
+  fromSide: Side;
+  toSide: Side;
+  fromEnd: "none" | "arrow";
+  toEnd: "none" | "arrow";
+  label: string | null;
+  color: CanvasColor | null;
 };
 export type CanvasState = {
   cards: Record<string, CanvasCard>;
@@ -617,16 +673,16 @@ export type CanvasState = {
 
 Put canvas data access in `src/lib/dal-canvas.ts` (`server-only`) and re-export it from `dal.ts`, so `dal.ts` stays the single choke point (R6).
 
-| Function | Notes |
-| --- | --- |
-| `listCanvases(courseId)` | Staff: all undeleted. Others: published only. |
-| `getCanvas(canvasId)` | Returns canvas, cards, edges **and resolved targets** (note title, slug, area, published flag, deleted flag; file name, kind, bytes, downloadable flag) in at most 4 queries (no N+1). |
-| `getStudentCanvas(canvasId)` | Student path (R6). Same shape; relies on the RLS in §5.2; additionally strips `body` of unpublished notes. |
-| `createCanvas(input)` | Server action only; enforces `max_canvases_per_course`. |
-| `applyCanvasOps(canvasId, ops)` | zod → RPC `canvas_apply_ops`. Before the first write after 30 minutes of inactivity, takes an automatic snapshot. Maps database errors to plain language (e.g. `canvas card limit reached` → “This map is full (limit N cards). Remove cards or start a second map.”). |
-| `saveVersion` / `listVersions` / `restoreVersion` | Manual snapshots are kept forever; automatic ones: newest `canvas_version_keep_auto` (default 30); pruning uses the admin client. |
-| `softDeleteCanvas` | Admin client; sets `deleted_at`; audit row; restore window = `retention_deleted_note_days`. |
-| `setPublished`, `setDefault`, `updateLegend`, `saveViewport` | `saveViewport` is debounced on the client (at most 2 per minute). |
+| Function                                                     | Notes                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `listCanvases(courseId)`                                     | Staff: all undeleted. Others: published only.                                                                                                                                                                                                                          |
+| `getCanvas(canvasId)`                                        | Returns canvas, cards, edges **and resolved targets** (note title, slug, area, published flag, deleted flag; file name, kind, bytes, downloadable flag) in at most 4 queries (no N+1).                                                                                 |
+| `getStudentCanvas(canvasId)`                                 | Student path (R6). Same shape; relies on the RLS in §5.2; additionally strips `body` of unpublished notes.                                                                                                                                                             |
+| `createCanvas(input)`                                        | Server action only; enforces `max_canvases_per_course`.                                                                                                                                                                                                                |
+| `applyCanvasOps(canvasId, ops)`                              | zod → RPC `canvas_apply_ops`. Before the first write after 30 minutes of inactivity, takes an automatic snapshot. Maps database errors to plain language (e.g. `canvas card limit reached` → “This map is full (limit N cards). Remove cards or start a second map.”). |
+| `saveVersion` / `listVersions` / `restoreVersion`            | Manual snapshots are kept forever; automatic ones: newest `canvas_version_keep_auto` (default 30); pruning uses the admin client.                                                                                                                                      |
+| `softDeleteCanvas`                                           | Admin client; sets `deleted_at`; audit row; restore window = `retention_deleted_note_days`.                                                                                                                                                                            |
+| `setPublished`, `setDefault`, `updateLegend`, `saveViewport` | `saveViewport` is debounced on the client (at most 2 per minute).                                                                                                                                                                                                      |
 
 Server actions live in `src/app/(leader)/courses/[courseId]/canvas/actions.ts`. Every action: zod-validate → resolve session and course role with `course-access.ts` → `can_edit_canvas` equivalent check in TypeScript (defence in depth; RLS is the real gate) → DAL → audit for create, delete, restore, publish and import → revalidate. Rate limits (new purposes in `rate-limit.ts`, R12): `canvas_ops` 240 per minute, `canvas_create` 20 per hour. Add both to the table in `PROJECT-GUIDE.md` §12.
 
@@ -727,45 +783,45 @@ Input: course id, optional section id. Output: a list of ops (and a new canvas).
 
 Every change is expressed as ops (§5.4), applied optimistically in the browser and queued for the server (§6.4). Drags emit **one** `node.update` per card **on drag end**, never during the drag.
 
-| Action | Mouse and keyboard | Touch | Ops emitted |
-| --- | --- | --- | --- |
-| Pan | Drag empty space, or Space + drag, or middle mouse | One finger on empty space | none (viewport saved) |
-| Zoom | Ctrl/Cmd + wheel, `+` / `-`, `0` = fit | Pinch, Fit button | none |
-| Select many | Shift + drag a box, Shift/Ctrl + click, Ctrl+A | Toolbar **Select many** toggle, then tap | none |
-| New text card | Double-click empty space, or `N` | Double-tap empty space, or **Add → Text** | `node.add` |
-| Add a note or file from the course | Drag from the left drawer, or **Add → Note/File** picker | **Add** sheet; card lands in the view centre | `node.add` |
-| Add a file from the computer | Drop onto the canvas (§6.5) | **Add → Upload** | `node.add` after upload |
-| Paste | Ctrl/Cmd+V: text → text card; `http(s)` URL → link card; image → upload then file card; Study Hub cards → copies with the same references | Paste in the **More** menu | `node.add` |
-| Connect | Drag from a side handle to another card. Dropping on empty space opens a quick menu (new text, note or file card) at that point | **Connect** mode: tap the source card, then the target | `edge.add` (+ `node.add`) |
-| Edit an edge | Click it → floating toolbar: label, colour, arrow ends, flip, remove | Tap it → same toolbar as a bottom sheet | `edge.update` / `edge.delete` |
-| Move, resize | Drag, drag corner handles; snap to the 20 px grid unless Alt is held | Drag; handles have a 24 px touch area | `node.update` |
-| Group | Select cards, press `G`: a group frame (padding 40) wraps them. Moving a group moves the cards whose centres were inside it **at drag start** (one batch) | **More → Group** | `node.add` (group) |
-| Align, distribute, tidy | Toolbar menu; **Tidy up** runs dagre on the selection with the §5.8 settings | **More → Tidy up** | batch of `node.update` |
-| Layer | Bring to front / send to back (`]` / `[`); groups stay in −1000…−1 | **More** | `node.update` (z) |
-| Colour | Palette popover: colours 1–6 and none; names come from the legend | Same, as a sheet | `node.update` / `edge.update` |
-| Hide from students | Eye toggle on text, link and group cards | Same | `node.update` (student\_visible) |
-| Remove from map | `Delete` / `Backspace`; toast with **Undo** | **More → Remove** | `node.delete` (+ cascaded edges) |
+| Action                             | Mouse and keyboard                                                                                                                                        | Touch                                                  | Ops emitted                      |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------- |
+| Pan                                | Drag empty space, or Space + drag, or middle mouse                                                                                                        | One finger on empty space                              | none (viewport saved)            |
+| Zoom                               | Ctrl/Cmd + wheel, `+` / `-`, `0` = fit                                                                                                                    | Pinch, Fit button                                      | none                             |
+| Select many                        | Shift + drag a box, Shift/Ctrl + click, Ctrl+A                                                                                                            | Toolbar **Select many** toggle, then tap               | none                             |
+| New text card                      | Double-click empty space, or `N`                                                                                                                          | Double-tap empty space, or **Add → Text**              | `node.add`                       |
+| Add a note or file from the course | Drag from the left drawer, or **Add → Note/File** picker                                                                                                  | **Add** sheet; card lands in the view centre           | `node.add`                       |
+| Add a file from the computer       | Drop onto the canvas (§6.5)                                                                                                                               | **Add → Upload**                                       | `node.add` after upload          |
+| Paste                              | Ctrl/Cmd+V: text → text card; `http(s)` URL → link card; image → upload then file card; Study Hub cards → copies with the same references                 | Paste in the **More** menu                             | `node.add`                       |
+| Connect                            | Drag from a side handle to another card. Dropping on empty space opens a quick menu (new text, note or file card) at that point                           | **Connect** mode: tap the source card, then the target | `edge.add` (+ `node.add`)        |
+| Edit an edge                       | Click it → floating toolbar: label, colour, arrow ends, flip, remove                                                                                      | Tap it → same toolbar as a bottom sheet                | `edge.update` / `edge.delete`    |
+| Move, resize                       | Drag, drag corner handles; snap to the 20 px grid unless Alt is held                                                                                      | Drag; handles have a 24 px touch area                  | `node.update`                    |
+| Group                              | Select cards, press `G`: a group frame (padding 40) wraps them. Moving a group moves the cards whose centres were inside it **at drag start** (one batch) | **More → Group**                                       | `node.add` (group)               |
+| Align, distribute, tidy            | Toolbar menu; **Tidy up** runs dagre on the selection with the §5.8 settings                                                                              | **More → Tidy up**                                     | batch of `node.update`           |
+| Layer                              | Bring to front / send to back (`]` / `[`); groups stay in −1000…−1                                                                                        | **More**                                               | `node.update` (z)                |
+| Colour                             | Palette popover: colours 1–6 and none; names come from the legend                                                                                         | Same, as a sheet                                       | `node.update` / `edge.update`    |
+| Hide from students                 | Eye toggle on text, link and group cards                                                                                                                  | Same                                                   | `node.update` (student\_visible) |
+| Remove from map                    | `Delete` / `Backspace`; toast with **Undo**                                                                                                               | **More → Remove**                                      | `node.delete` (+ cascaded edges) |
 
 **Safety rules:** removing a card never deletes its note or file (D1). The card menu offers **Open**, **Copy**, **Duplicate**, **Remove from map**; deleting a note or file is only available in the note’s or file’s own menu, with the existing confirmation.
 
 ### 6.3 Keyboard shortcuts
 
-| Keys | Action |
-| --- | --- |
-| `Ctrl/Cmd+K` | Command palette |
-| `Ctrl/Cmd+Z`, `Ctrl/Cmd+Shift+Z` or `Ctrl+Y` | Undo, redo |
-| `Ctrl/Cmd+C`, `V`, `D` | Copy, paste, duplicate |
-| `Ctrl/Cmd+S` | Save a named version (prevent the browser dialog) |
-| `N` | New text card at the view centre |
-| `G` | Group the selection |
-| `Ctrl/Cmd+Shift+L` | Tidy up |
-| `Delete`, `Backspace` | Remove selected from map |
-| `Arrow keys` | Nudge the selected cards by 20 px (grid) |
-| `Alt+Arrow` | Move focus to the nearest **connected** card in that direction (follows edges) |
-| `Tab`, `Shift+Tab` | Next, previous card in reading order |
-| `Enter` | Open the focused card in the side pane |
-| `Esc` | Close menu, pane or selection (in that order) |
-| `?` | Show this list |
+| Keys                                         | Action                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------ |
+| `Ctrl/Cmd+K`                                 | Command palette                                                                |
+| `Ctrl/Cmd+Z`, `Ctrl/Cmd+Shift+Z` or `Ctrl+Y` | Undo, redo                                                                     |
+| `Ctrl/Cmd+C`, `V`, `D`                       | Copy, paste, duplicate                                                         |
+| `Ctrl/Cmd+S`                                 | Save a named version (prevent the browser dialog)                              |
+| `N`                                          | New text card at the view centre                                               |
+| `G`                                          | Group the selection                                                            |
+| `Ctrl/Cmd+Shift+L`                           | Tidy up                                                                        |
+| `Delete`, `Backspace`                        | Remove selected from map                                                       |
+| `Arrow keys`                                 | Nudge the selected cards by 20 px (grid)                                       |
+| `Alt+Arrow`                                  | Move focus to the nearest **connected** card in that direction (follows edges) |
+| `Tab`, `Shift+Tab`                           | Next, previous card in reading order                                           |
+| `Enter`                                      | Open the focused card in the side pane                                         |
+| `Esc`                                        | Close menu, pane or selection (in that order)                                  |
+| `?`                                          | Show this list                                                                 |
 
 Shortcuts MUST NOT fire while a text field, the TipTap editor or a palette input has focus. Put them in `src/lib/canvas/shortcuts.ts` as data (key, action, label) so the `?` sheet and the leader guide are generated from the same list.
 
@@ -851,64 +907,135 @@ Use `cmdk` (MIT; add the `FREE_TIER.md` row first). Opens with `Ctrl/Cmd+K` and 
 The values below are starting points. **The contrast script (§7.12) is the authority:** if a pair fails, adjust the value, not the script.
 
 ```css
-:root, [data-theme='light'] {
+:root,
+[data-theme="light"] {
   color-scheme: light;
-  --bg: #fafaf9;  --surface: #ffffff;  --surface-2: #f3f3f1;  --card: #ffffff;
-  --border: #dcdce0;  --border-strong: #b8b8c0;
-  --text: #1b1b1f;  --text-muted: #5b5b66;
-  --accent: #5b4bd6;  --accent-contrast: #ffffff;  --accent-soft: #ecebfb;
+  --bg: #fafaf9;
+  --surface: #ffffff;
+  --surface-2: #f3f3f1;
+  --card: #ffffff;
+  --border: #dcdce0;
+  --border-strong: #b8b8c0;
+  --text: #1b1b1f;
+  --text-muted: #5b5b66;
+  --accent: #5b4bd6;
+  --accent-contrast: #ffffff;
+  --accent-soft: #ecebfb;
   --focus: #1a73e8;
-  --danger: #c4272d;  --success: #1f7a3d;  --warning: #8a5a00;
-  --canvas-bg: #f4f4f2;  --canvas-dot: #c9c9cf;
-  --canvas-1: #e5484d;  --canvas-2: #d9560a;  --canvas-3: #a87c00;
-  --canvas-4: #2f9e44;  --canvas-5: #0b9fb5;  --canvas-6: #7c5cff;
-  --shadow-1: 0 1px 2px rgb(0 0 0 / .06), 0 1px 3px rgb(0 0 0 / .08);
-  --shadow-2: 0 4px 14px rgb(0 0 0 / .12);
-  --radius-s: 6px;  --radius-m: 10px;  --radius-l: 16px;
-  --dur-1: 120ms;  --dur-2: 200ms;  --dur-3: 320ms;
-  --ease: cubic-bezier(.2, .7, .2, 1);
+  --danger: #c4272d;
+  --success: #1f7a3d;
+  --warning: #8a5a00;
+  --canvas-bg: #f4f4f2;
+  --canvas-dot: #c9c9cf;
+  --canvas-1: #e5484d;
+  --canvas-2: #d9560a;
+  --canvas-3: #a87c00;
+  --canvas-4: #2f9e44;
+  --canvas-5: #0b9fb5;
+  --canvas-6: #7c5cff;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.06), 0 1px 3px rgb(0 0 0 / 0.08);
+  --shadow-2: 0 4px 14px rgb(0 0 0 / 0.12);
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 16px;
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
-[data-theme='dark'] {
+[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #131317;  --surface: #1b1b21;  --surface-2: #23232b;  --card: #25252d;
-  --border: #34343f;  --border-strong: #4a4a58;
-  --text: #ececf1;  --text-muted: #a8a8b6;
-  --accent: #9b8cff;  --accent-contrast: #0f0f14;  --accent-soft: #2a2745;
+  --bg: #131317;
+  --surface: #1b1b21;
+  --surface-2: #23232b;
+  --card: #25252d;
+  --border: #34343f;
+  --border-strong: #4a4a58;
+  --text: #ececf1;
+  --text-muted: #a8a8b6;
+  --accent: #9b8cff;
+  --accent-contrast: #0f0f14;
+  --accent-soft: #2a2745;
   --focus: #7db4ff;
-  --danger: #ff7b80;  --success: #4cc38a;  --warning: #f0b429;
-  --canvas-bg: #101014;  --canvas-dot: #2c2c36;
-  --canvas-1: #ff6369;  --canvas-2: #ff8b3e;  --canvas-3: #f5c518;
-  --canvas-4: #4cc38a;  --canvas-5: #3dd6f5;  --canvas-6: #a78bfa;
-  --shadow-1: 0 1px 2px rgb(0 0 0 / .4);
-  --shadow-2: 0 6px 18px rgb(0 0 0 / .5);
+  --danger: #ff7b80;
+  --success: #4cc38a;
+  --warning: #f0b429;
+  --canvas-bg: #101014;
+  --canvas-dot: #2c2c36;
+  --canvas-1: #ff6369;
+  --canvas-2: #ff8b3e;
+  --canvas-3: #f5c518;
+  --canvas-4: #4cc38a;
+  --canvas-5: #3dd6f5;
+  --canvas-6: #a78bfa;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-2: 0 6px 18px rgb(0 0 0 / 0.5);
 }
-[data-theme='paper'] {
+[data-theme="paper"] {
   color-scheme: light;
-  --bg: #f4ecd8;  --surface: #fbf5e6;  --surface-2: #ece2c8;  --card: #fbf5e6;
-  --border: #d6c9a8;  --border-strong: #b3a37c;
-  --text: #2b2318;  --text-muted: #6b5f4a;
-  --accent: #9a3412;  --accent-contrast: #fffaf0;  --accent-soft: #f0d9c0;
+  --bg: #f4ecd8;
+  --surface: #fbf5e6;
+  --surface-2: #ece2c8;
+  --card: #fbf5e6;
+  --border: #d6c9a8;
+  --border-strong: #b3a37c;
+  --text: #2b2318;
+  --text-muted: #6b5f4a;
+  --accent: #9a3412;
+  --accent-contrast: #fffaf0;
+  --accent-soft: #f0d9c0;
   --focus: #1d4ed8;
-  --danger: #a61b1b;  --success: #20632f;  --warning: #7a4a00;
-  --canvas-bg: #efe5cc;  --canvas-dot: #cdbf9c;
-  --canvas-1: #d23b40;  --canvas-2: #c24d08;  --canvas-3: #8f6a00;
-  --canvas-4: #2a8a3d;  --canvas-5: #0a8aa0;  --canvas-6: #6b4de0;
+  --danger: #a61b1b;
+  --success: #20632f;
+  --warning: #7a4a00;
+  --canvas-bg: #efe5cc;
+  --canvas-dot: #cdbf9c;
+  --canvas-1: #d23b40;
+  --canvas-2: #c24d08;
+  --canvas-3: #8f6a00;
+  --canvas-4: #2a8a3d;
+  --canvas-5: #0a8aa0;
+  --canvas-6: #6b4de0;
 }
-[data-theme='contrast'] {
+[data-theme="contrast"] {
   color-scheme: dark;
-  --bg: #000000;  --surface: #0a0a0a;  --surface-2: #141414;  --card: #000000;
-  --border: #ffffff;  --border-strong: #ffffff;
-  --text: #ffffff;  --text-muted: #e0e0e0;
-  --accent: #ffd60a;  --accent-contrast: #000000;  --accent-soft: #2b2500;
+  --bg: #000000;
+  --surface: #0a0a0a;
+  --surface-2: #141414;
+  --card: #000000;
+  --border: #ffffff;
+  --border-strong: #ffffff;
+  --text: #ffffff;
+  --text-muted: #e0e0e0;
+  --accent: #ffd60a;
+  --accent-contrast: #000000;
+  --accent-soft: #2b2500;
   --focus: #00e5ff;
-  --danger: #ff6b6b;  --success: #5dff8f;  --warning: #ffd60a;
-  --canvas-bg: #000000;  --canvas-dot: #5a5a5a;
-  --canvas-1: #ff6b6b;  --canvas-2: #ff9f43;  --canvas-3: #ffd60a;
-  --canvas-4: #5dff8f;  --canvas-5: #00e5ff;  --canvas-6: #c4a7ff;
+  --danger: #ff6b6b;
+  --success: #5dff8f;
+  --warning: #ffd60a;
+  --canvas-bg: #000000;
+  --canvas-dot: #5a5a5a;
+  --canvas-1: #ff6b6b;
+  --canvas-2: #ff9f43;
+  --canvas-3: #ffd60a;
+  --canvas-4: #5dff8f;
+  --canvas-5: #00e5ff;
+  --canvas-6: #c4a7ff;
 }
 /* No-JS fallback only; the inline script always sets data-theme before paint. */
-@media (prefers-color-scheme: dark) { :root:not([data-theme]) { /* copy the dark values */ } }
-@media (prefers-reduced-motion: reduce) { :root { --dur-1: 1ms; --dur-2: 1ms; --dur-3: 1ms; } }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    /* copy the dark values */
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 1ms;
+    --dur-2: 1ms;
+    --dur-3: 1ms;
+  }
+}
 ```
 
 **Tailwind 4 wiring** (in `globals.css`): `@theme inline { --color-bg: var(--bg); --color-surface: var(--surface); --color-card: var(--card); --color-border: var(--border); --color-text: var(--text); --color-muted: var(--text-muted); --color-accent: var(--accent); --color-accent-contrast: var(--accent-contrast); --color-accent-soft: var(--accent-soft); --color-danger: var(--danger); --color-success: var(--success); --color-warning: var(--warning); }` so utilities such as `bg-surface`, `text-muted`, `border-border` exist. Add a unit test that fails if any file under `src/` (except `tokens.css` and `tokens-accent.css`) contains a raw hex colour or a Tailwind palette class such as `bg-slate-*`, `text-gray-*`, `bg-white`, `text-black`.
@@ -950,13 +1077,13 @@ Build on Radix primitives (MIT): `@radix-ui/react-dialog`, `-dropdown-menu`, `-p
 
 ### 7.9 Layouts per device
 
-| Width | Shell |
-| --- | --- |
-| under 768 (phone) | Top bar (course name, menu), content, **bottom nav** (Home, Courses, Search, Jobs or Map) with safe-area padding; secondary UI in bottom sheets; canvas full-bleed with the bottom toolbar |
-| 768–1279 (tablet) | Collapsible left rail (icons, optional labels); side pane as an overlay drawer; in landscape the canvas and the pane may split 60/40 |
+| Width                 | Shell                                                                                                                                                                                                       |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| under 768 (phone)     | Top bar (course name, menu), content, **bottom nav** (Home, Courses, Search, Jobs or Map) with safe-area padding; secondary UI in bottom sheets; canvas full-bleed with the bottom toolbar                  |
+| 768–1279 (tablet)     | Collapsible left rail (icons, optional labels); side pane as an overlay drawer; in landscape the canvas and the pane may split 60/40                                                                        |
 | 1280 and up (desktop) | Three panes: left outline or file tree with search (240–360 px, resizable), centre tabs (Map, Notes), right inspector and AI panel (320–420 px, docked, collapsible). Pane widths are remembered per device |
-| 1920 and up | Lists capped at 1600 px; the canvas uses the full width |
-| Student shell | Simple: top bar plus bottom nav on phones, no side panes except the note outline (and backlinks in M12). Reading width 68ch |
+| 1920 and up           | Lists capped at 1600 px; the canvas uses the full width                                                                                                                                                     |
+| Student shell         | Simple: top bar plus bottom nav on phones, no side panes except the note outline (and backlinks in M12). Reading width 68ch                                                                                 |
 
 **PWA:** manifest gains `id`, `categories: ['education']`, `screenshots` (phone and desktop), `shortcuts` (My courses, Search). iOS: `apple-mobile-web-app-status-bar-style` set to `black-translucent` with safe-area padding. The theme-color meta follows the theme (§7.4). Check that `public/sw.js` already caches the last 20 visited pages including canvases; add a Playwright offline test that opens a visited canvas offline (production build, as for the existing offline test).
 
@@ -1003,15 +1130,15 @@ Playwright `toHaveScreenshot` for five screens (login, course hub, note, canvas,
 
 **Mapping (export):**
 
-| Study Hub | JSON Canvas |
-| --- | --- |
-| `text` card | `{ id, type: 'text', text: body, x, y, width, height, color }` |
-| `note` card | `{ type: 'file', file: '<course-slug>/<section-slug>/<note-slug>.md' }` (same path the Markdown export already uses) |
-| `file` card | `{ type: 'file', file: '<course-slug>/_files/<unique-safe-filename>' }` |
-| `link` card | `{ type: 'link', url }` |
-| `group` card | `{ type: 'group', label }` |
-| edge | `{ id, fromNode, toNode, fromSide, toSide, fromEnd, toEnd, color, label }` |
-| colour | the same strings `'1'`…`'6'` |
+| Study Hub    | JSON Canvas                                                                                                          |
+| ------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `text` card  | `{ id, type: 'text', text: body, x, y, width, height, color }`                                                       |
+| `note` card  | `{ type: 'file', file: '<course-slug>/<section-slug>/<note-slug>.md' }` (same path the Markdown export already uses) |
+| `file` card  | `{ type: 'file', file: '<course-slug>/_files/<unique-safe-filename>' }`                                              |
+| `link` card  | `{ type: 'link', url }`                                                                                              |
+| `group` card | `{ type: 'group', label }`                                                                                           |
+| edge         | `{ id, fromNode, toNode, fromSide, toSide, fromEnd, toEnd, color, label }`                                           |
+| colour       | the same strings `'1'`…`'6'`                                                                                         |
 
 Exported ids are the UUID without dashes. Import always generates fresh ids.
 
@@ -1148,15 +1275,15 @@ If the private-channel API differs from this sketch, record it in `QUESTIONS.md`
 
 All data lives in IndexedDB through `idb-keyval` (MIT), key prefix `studyhub:<courseId>:`. Nothing is sent to the server. **Export my study data** and **Import** use a versioned JSON file (zod-validated, at most 2 MB) so a student can move to a new phone.
 
-| Tool | Behaviour |
-| --- | --- |
-| Bookmarks | Star a note or a canvas card; **Saved** list on the student home |
-| Highlights and personal notes | Select text → highlight (yellow, green, pink, each with a pattern or label) plus an optional comment. Anchor = `{ noteId, versionId, quote ≤200, prefix ≤40, suffix ≤40 }`. On a new version re-anchor by searching the quote; if not found mark it **outdated** |
-| Progress | **Mark as read** per note, course progress bar, **Continue where I left off** (last note and scroll position) |
-| Flashcards (Leitner) | Leaders write cards anywhere in the Quiz & exam prep area as `Front :: Back` lines (`src/lib/flashcards.ts`, pure; ignores code blocks; at most 200 per note). A TipTap toolbar button **Add flashcard** inserts such a line. Students practise at `/s/practice/[courseId]`: boxes 1–5 with intervals 1, 2, 4, 8, 16 days; right → next box, wrong → box 1; at most 20 due cards per session. Progress is keyed by a hash of the normalised front text plus the note id. Keyboard: Space flips, `1` wrong, `2` right; large buttons on touch; `dir=auto` text |
-| Read aloud | Button on notes using `speechSynthesis`, feature-detected. Language guessed from the first 200 characters (Arabic script → `ar`, else `en`). Chunk text to at most 200 characters per utterance. If the device has no voice for the language, say so in plain words |
-| Export map as image | PNG of the visible cards through `html-to-image` (MIT), longest side at most 4096 px, for leaders and students |
-| Present mode | **Present** on a canvas steps through cards in reading order, or by following edges from the core card; Space/→ next, ← back, Esc exits; camera moves with `fitBounds` (duration 0 under reduced motion); “3 / 24” indicator. No schema change |
+| Tool                          | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bookmarks                     | Star a note or a canvas card; **Saved** list on the student home                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Highlights and personal notes | Select text → highlight (yellow, green, pink, each with a pattern or label) plus an optional comment. Anchor = `{ noteId, versionId, quote ≤200, prefix ≤40, suffix ≤40 }`. On a new version re-anchor by searching the quote; if not found mark it **outdated**                                                                                                                                                                                                                                                                                              |
+| Progress                      | **Mark as read** per note, course progress bar, **Continue where I left off** (last note and scroll position)                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Flashcards (Leitner)          | Leaders write cards anywhere in the Quiz & exam prep area as `Front :: Back` lines (`src/lib/flashcards.ts`, pure; ignores code blocks; at most 200 per note). A TipTap toolbar button **Add flashcard** inserts such a line. Students practise at `/s/practice/[courseId]`: boxes 1–5 with intervals 1, 2, 4, 8, 16 days; right → next box, wrong → box 1; at most 20 due cards per session. Progress is keyed by a hash of the normalised front text plus the note id. Keyboard: Space flips, `1` wrong, `2` right; large buttons on touch; `dir=auto` text |
+| Read aloud                    | Button on notes using `speechSynthesis`, feature-detected. Language guessed from the first 200 characters (Arabic script → `ar`, else `en`). Chunk text to at most 200 characters per utterance. If the device has no voice for the language, say so in plain words                                                                                                                                                                                                                                                                                           |
+| Export map as image           | PNG of the visible cards through `html-to-image` (MIT), longest side at most 4096 px, for leaders and students                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Present mode                  | **Present** on a canvas steps through cards in reading order, or by following edges from the core card; Space/→ next, ← back, Esc exits; camera moves with `fitBounds` (duration 0 under reduced motion); “3 / 24” indicator. No schema change                                                                                                                                                                                                                                                                                                                |
 
 ### 9.4 Events and timetable — migration `00023_m13_events_views.sql` (part 1)
 
@@ -1233,31 +1360,31 @@ grant execute on function public.bump_note_view(uuid) to service_role;
 
 Register every key in `src/lib/settings.ts` with a plain-language label, default, minimum and maximum, so `/admin/settings` renders it (QUESTIONS #21 said eight keys; this adds nine).
 
-| Key | Default | Min | Max | Label shown to admins |
-| --- | --- | --- | --- | --- |
-| `max_canvas_cards` | 300 | 20 | 1000 | Most cards on one map |
-| `max_canvases_per_course` | 20 | 1 | 100 | Most maps per course |
-| `canvas_version_keep_auto` | 30 | 5 | 100 | Automatic map backups to keep |
-| `canvas_import_max_kb` | 1024 | 64 | 4096 | Largest map file you can import (KB) |
-| `vault_export_max_mb` | 200 | 10 | 500 | Largest Obsidian download (MB) |
-| `realtime_enabled` | 1 | 0 | 1 | Live editing together (1 = on) |
-| `max_live_editors_per_canvas` | 5 | 1 | 10 | Leaders who can edit one map live |
-| `max_events_per_course` | 200 | 10 | 1000 | Most calendar entries per course |
-| `retention_view_counts_days` | 365 | 30 | 1095 | Days to keep note read counts |
+| Key                           | Default | Min | Max  | Label shown to admins                |
+| ----------------------------- | ------- | --- | ---- | ------------------------------------ |
+| `max_canvas_cards`            | 300     | 20  | 1000 | Most cards on one map                |
+| `max_canvases_per_course`     | 20      | 1   | 100  | Most maps per course                 |
+| `canvas_version_keep_auto`    | 30      | 5   | 100  | Automatic map backups to keep        |
+| `canvas_import_max_kb`        | 1024    | 64  | 4096 | Largest map file you can import (KB) |
+| `vault_export_max_mb`         | 200     | 10  | 500  | Largest Obsidian download (MB)       |
+| `realtime_enabled`            | 1       | 0   | 1    | Live editing together (1 = on)       |
+| `max_live_editors_per_canvas` | 5       | 1   | 10   | Leaders who can edit one map live    |
+| `max_events_per_course`       | 200     | 10  | 1000 | Most calendar entries per course     |
+| `retention_view_counts_days`  | 365     | 30  | 1095 | Days to keep note read counts        |
 
 **New rate-limit purposes** (add to `rate-limit.ts` and the table in `PROJECT-GUIDE.md` §12; all fail closed): `canvas_ops` 240 per minute, `canvas_create` 20 per hour, `canvas_import` 10 per hour, `view` 60 per minute, `ai_organise` 1 per minute.
 
 **Migrations added by this plan:**
 
-| File | Milestone | Content |
-| --- | --- | --- |
-| `00018_m9_canvas.sql` | M9 | canvases, cards, edges, versions, guards, RLS, grants |
-| `00019_m9_canvas_ops.sql` | M9 | snapshot, apply-ops and restore RPCs |
-| `00020_m11_course_accent.sql` | M11 | `courses.accent` preset |
-| `00021_m12_note_links.sql` | M12 | wikilink table and policies |
-| `00022_m12_search_normalize.sql` | M12 | `pg_trgm`, `normalize_search`, `nodes.search_norm` |
-| `00023_m13_events_views.sql` | M13 | `course_events`, `note_view_counts`, `bump_note_view` |
-| `00024_m13_realtime.sql` | M13 | realtime publication and channel policies |
+| File                             | Milestone | Content                                               |
+| -------------------------------- | --------- | ----------------------------------------------------- |
+| `00018_m9_canvas.sql`            | M9        | canvases, cards, edges, versions, guards, RLS, grants |
+| `00019_m9_canvas_ops.sql`        | M9        | snapshot, apply-ops and restore RPCs                  |
+| `00020_m11_course_accent.sql`    | M11       | `courses.accent` preset                               |
+| `00021_m12_note_links.sql`       | M12       | wikilink table and policies                           |
+| `00022_m12_search_normalize.sql` | M12       | `pg_trgm`, `normalize_search`, `nodes.search_norm`    |
+| `00023_m13_events_views.sql`     | M13       | `course_events`, `note_view_counts`, `bump_note_view` |
+| `00024_m13_realtime.sql`         | M13       | realtime publication and channel policies             |
 
 After each migration: apply it locally (`db:reset`), run the RLS suite, then apply it to the hosted project and note it in `PROJECT-GUIDE.md` §6 (table count and migration table).
 
@@ -1282,13 +1409,13 @@ After each migration: apply it locally (`db:reset`), run the RLS suite, then app
 
 ## 12. Testing, CI and performance
 
-| Suite | What changes |
-| --- | --- |
-| Vitest | New pure modules: `canvas/*`, `wikilinks`, `search-normalize`, `flashcards`, `ics`, `study-data`, `accent`; shortcut table check; token-usage check |
-| RLS (`scripts/test-rls.mjs`) | §5.9, §8.6 and §9.7 cases; continue the existing numbering |
-| Playwright | Specs listed per milestone; axe on every new page; 360 px and 1280 px; one RTL check; offline canvas check on the production build |
-| CI `quality` job | Add `node scripts/check-contrast.mjs` |
-| CI `e2e` job | Keep total e2e time under 15 minutes; if exceeded, split desktop and mobile projects with `--shard` |
+| Suite                        | What changes                                                                                                                                        |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vitest                       | New pure modules: `canvas/*`, `wikilinks`, `search-normalize`, `flashcards`, `ics`, `study-data`, `accent`; shortcut table check; token-usage check |
+| RLS (`scripts/test-rls.mjs`) | §5.9, §8.6 and §9.7 cases; continue the existing numbering                                                                                          |
+| Playwright                   | Specs listed per milestone; axe on every new page; 360 px and 1280 px; one RTL check; offline canvas check on the production build                  |
+| CI `quality` job             | Add `node scripts/check-contrast.mjs`                                                                                                               |
+| CI `e2e` job                 | Keep total e2e time under 15 minutes; if exceeded, split desktop and mobile projects with `--shard`                                                 |
 
 **Baseline first:** before starting M9, run the existing Lighthouse script on the student home and a student note page and write the scores in `docs/M9-recon.md`. After each milestone the performance score on those pages MUST NOT drop by more than 3 points. Extend `scripts/load-test.mjs` with a read of a 300-card canvas.
 
@@ -1296,36 +1423,36 @@ After each migration: apply it locally (`db:reset`), run the RLS suite, then app
 
 The licences below are what is expected. **Confirm each on its official page on the day you add the row** and write that date; do not rely on this table.
 
-| Dependency or service | Expected licence | Used for | Milestone |
-| --- | --- | --- | --- |
-| `@dagrejs/dagre` | MIT | Auto-layout (generate, tidy up) | M9 |
-| `cmdk` | MIT | Command palette | M10 |
-| `lucide-react` | ISC | Icons | M11 |
-| `@radix-ui/react-*` primitives (dialog, dropdown-menu, popover, tooltip, tabs, toggle-group, switch) | MIT | Accessible components | M11 |
-| Inter, IBM Plex Sans Arabic (font files) | SIL OFL 1.1 | Self-hosted fonts | M11 |
-| `@tiptap/suggestion` | MIT | `[[` autocomplete | M12 |
-| `d3-force` | ISC | Graph layout | M12 |
-| `pg_trgm` (Postgres extension, included with Supabase) | PostgreSQL licence | Typo-tolerant search | M12 |
-| `idb-keyval` | Apache-2.0 | Student data on the device | M13 |
-| `html-to-image` | MIT | Export map as PNG | M13 |
-| Supabase Realtime (free plan limits) | n/a | Live co-working | M13: copy the current limits and the date from the official pricing page |
+| Dependency or service                                                                                | Expected licence   | Used for                        | Milestone                                                                |
+| ---------------------------------------------------------------------------------------------------- | ------------------ | ------------------------------- | ------------------------------------------------------------------------ |
+| `@dagrejs/dagre`                                                                                     | MIT                | Auto-layout (generate, tidy up) | M9                                                                       |
+| `cmdk`                                                                                               | MIT                | Command palette                 | M10                                                                      |
+| `lucide-react`                                                                                       | ISC                | Icons                           | M11                                                                      |
+| `@radix-ui/react-*` primitives (dialog, dropdown-menu, popover, tooltip, tabs, toggle-group, switch) | MIT                | Accessible components           | M11                                                                      |
+| Inter, IBM Plex Sans Arabic (font files)                                                             | SIL OFL 1.1        | Self-hosted fonts               | M11                                                                      |
+| `@tiptap/suggestion`                                                                                 | MIT                | `[[` autocomplete               | M12                                                                      |
+| `d3-force`                                                                                           | ISC                | Graph layout                    | M12                                                                      |
+| `pg_trgm` (Postgres extension, included with Supabase)                                               | PostgreSQL licence | Typo-tolerant search            | M12                                                                      |
+| `idb-keyval`                                                                                         | Apache-2.0         | Student data on the device      | M13                                                                      |
+| `html-to-image`                                                                                      | MIT                | Export map as PNG               | M13                                                                      |
+| Supabase Realtime (free plan limits)                                                                 | n/a                | Live co-working                 | M13: copy the current limits and the date from the official pricing page |
 
 ## 14. Rows to add to `docs/QUESTIONS.md` (start at #31)
 
-| # | Date | Question | Simplest safe option chosen for now |
-| --- | --- | --- | --- |
-| 31 | 2026-10-30 | Who may edit canvases? | Admin, course owner and course editor. Contributors and reviewers read (D7). Revisit if contributors need to add their own notes to maps. |
-| 32 | 2026-10-30 | A published map is live: edits show to students immediately. Should maps have a separate draft and publish step? | No. Show a banner on published maps, “This map is published — changes are visible to students immediately”, and offer **Unpublish to edit privately**. **MUST be built in M9.** |
-| 33 | 2026-10-30 | Student study data lives only on the device and is lost if the browser data is cleared. | Provide **Export my study data** and **Import** (§9.3). No server copy, to keep students account-free and private. |
-| 34 | 2026-10-30 | Should a leader’s theme follow them across devices? | No: device-only in v1 (D15). A `profiles.theme` column can come later. |
-| 35 | 2026-10-30 | Will theme screenshots be stable in CI? | Try five screens × three widths × four themes; if flaky, keep light and dark only. |
-| 36 | 2026-10-30 | The Supabase Realtime private-channel API may differ from the sketch in §9.2. | Fall back to Postgres Changes only with an “edited a moment ago by \<name>” indicator. |
-| 37 | 2026-10-30 | Should students get a calendar subscription URL? | No. `.ics` download only; a subscription URL needs a new secret. |
-| 38 | 2026-10-30 | The Arabic search normaliser is lossy on purpose (ta marbuta → ha, alef maqsura → ya). Acceptable? | Yes, for search only; displayed text is never changed. |
-| 39 | 2026-10-30 | Vault export size. | Built in the browser, capped at `vault_export_max_mb` (200); offer “without files” above that. |
-| 40 | 2026-10-30 | After `/map` redirects to the canvas, keep the old tree map? | Keep it reachable as **Outline**; it is also the accessible alternative. |
-| 41 | 2026-10-30 | Can reviewers comment on canvas cards? | Not in v1. Comments stay on notes. |
-| 42 | 2026-10-30 | Do seed ids (`cccccccc-…`) need real UUIDs for canvas ops? | Use the relaxed hex pattern for any id that may be a seed id (same as #19); new ids come from `crypto.randomUUID()`. |
+| #   | Date       | Question                                                                                                         | Simplest safe option chosen for now                                                                                                                                             |
+| --- | ---------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 31  | 2026-10-30 | Who may edit canvases?                                                                                           | Admin, course owner and course editor. Contributors and reviewers read (D7). Revisit if contributors need to add their own notes to maps.                                       |
+| 32  | 2026-10-30 | A published map is live: edits show to students immediately. Should maps have a separate draft and publish step? | No. Show a banner on published maps, “This map is published — changes are visible to students immediately”, and offer **Unpublish to edit privately**. **MUST be built in M9.** |
+| 33  | 2026-10-30 | Student study data lives only on the device and is lost if the browser data is cleared.                          | Provide **Export my study data** and **Import** (§9.3). No server copy, to keep students account-free and private.                                                              |
+| 34  | 2026-10-30 | Should a leader’s theme follow them across devices?                                                              | No: device-only in v1 (D15). A `profiles.theme` column can come later.                                                                                                          |
+| 35  | 2026-10-30 | Will theme screenshots be stable in CI?                                                                          | Try five screens × three widths × four themes; if flaky, keep light and dark only.                                                                                              |
+| 36  | 2026-10-30 | The Supabase Realtime private-channel API may differ from the sketch in §9.2.                                    | Fall back to Postgres Changes only with an “edited a moment ago by \<name>” indicator.                                                                                          |
+| 37  | 2026-10-30 | Should students get a calendar subscription URL?                                                                 | No. `.ics` download only; a subscription URL needs a new secret.                                                                                                                |
+| 38  | 2026-10-30 | The Arabic search normaliser is lossy on purpose (ta marbuta → ha, alef maqsura → ya). Acceptable?               | Yes, for search only; displayed text is never changed.                                                                                                                          |
+| 39  | 2026-10-30 | Vault export size.                                                                                               | Built in the browser, capped at `vault_export_max_mb` (200); offer “without files” above that.                                                                                  |
+| 40  | 2026-10-30 | After `/map` redirects to the canvas, keep the old tree map?                                                     | Keep it reachable as **Outline**; it is also the accessible alternative.                                                                                                        |
+| 41  | 2026-10-30 | Can reviewers comment on canvas cards?                                                                           | Not in v1. Comments stay on notes.                                                                                                                                              |
+| 42  | 2026-10-30 | Do seed ids (`cccccccc-…`) need real UUIDs for canvas ops?                                                       | Use the relaxed hex pattern for any id that may be a seed id (same as #19); new ids come from `crypto.randomUUID()`.                                                            |
 
 ## 15. Kickoff prompts for opencode
 
@@ -1382,14 +1509,14 @@ scripts/{check-contrast,backfill-search-norm}.mjs
 docs/{CANVAS-SPEC,M9-recon}.md
 ```
 
-| Route | Who | Milestone |
-| --- | --- | --- |
-| `/courses/[courseId]/canvas`, `/canvas/[canvasId]` | Leaders | M9 |
-| `/s/canvas/[canvasId]` | Students | M9 |
-| `/courses/[courseId]/graph`, `/s/graph/[courseId]` | Leaders, students | M12 |
-| `/courses/[courseId]/calendar`, `/s/calendar` | Leaders, students | M13 |
-| `/s/practice/[courseId]` | Students | M13 |
-| `GET /api/calendar/[courseId]` (`.ics`) | Leaders, students | M13 |
+| Route                                              | Who               | Milestone |
+| -------------------------------------------------- | ----------------- | --------- |
+| `/courses/[courseId]/canvas`, `/canvas/[canvasId]` | Leaders           | M9        |
+| `/s/canvas/[canvasId]`                             | Students          | M9        |
+| `/courses/[courseId]/graph`, `/s/graph/[courseId]` | Leaders, students | M12       |
+| `/courses/[courseId]/calendar`, `/s/calendar`      | Leaders, students | M13       |
+| `/s/practice/[courseId]`                           | Students          | M13       |
+| `GET /api/calendar/[courseId]` (`.ics`)            | Leaders, students | M13       |
 
 Update `PROJECT-GUIDE.md`: §4 (stack rows), §5 (dependencies), §6 (tables and migrations), §7 (screens), §12 (rate limits), §13 (settings), §14 (routes), §19 (repository map), §20 (this spec in the documentation set).
 

@@ -156,7 +156,11 @@ export default function CanvasListTools(props: {
             <div className="ml-auto flex items-center gap-1.5">
               {!canvas.isDefault ? (
                 <form action={defaultAction}>
-                  <input type="hidden" name="course_id" value={props.courseId} />
+                  <input
+                    type="hidden"
+                    name="course_id"
+                    value={props.courseId}
+                  />
                   <input type="hidden" name="canvas_id" value={canvas.id} />
                   <button
                     type="submit"

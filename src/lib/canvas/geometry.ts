@@ -48,16 +48,19 @@ export function rectOf(box: Omit<CardBox, "id">): Rect {
 }
 
 /** Cards belong to a group when their centre is inside the group rectangle. */
-export function cardsInsideGroup(group: CardBox, cards: CanvasCard[]): CanvasCard[] {
+export function cardsInsideGroup(
+  group: CardBox,
+  cards: CanvasCard[],
+): CanvasCard[] {
   const r = rectOf(group);
   return cards.filter(
     // Groups never belong to groups (no nesting, spec D4).
     (card) =>
       card.kind !== "group" &&
-      (card.x + card.width / 2) >= r.left &&
-      (card.x + card.width / 2) <= r.right &&
-      (card.y + card.height / 2) >= r.top &&
-      (card.y + card.height / 2) <= r.bottom,
+      card.x + card.width / 2 >= r.left &&
+      card.x + card.width / 2 <= r.right &&
+      card.y + card.height / 2 >= r.top &&
+      card.y + card.height / 2 <= r.bottom,
   );
 }
 
@@ -81,7 +84,10 @@ export function unionRect(boxes: Array<Omit<CardBox, "id">>): Rect | null {
 export type CanvasEdgeSide = "top" | "right" | "bottom" | "left";
 
 /** Which side midpoint of the box is nearest to `point`. */
-export function nearestSide(box: Omit<CardBox, "id">, point: Point): CanvasEdgeSide {
+export function nearestSide(
+  box: Omit<CardBox, "id">,
+  point: Point,
+): CanvasEdgeSide {
   const r = rectOf(box);
   const mids: Array<{ side: CanvasEdgeSide; x: number; y: number }> = [
     { side: "top", x: (r.left + r.right) / 2, y: r.top },
@@ -172,9 +178,13 @@ export function distributeCards(
   const span = last[axis] - first[axis];
   for (const box of sorted) {
     const index = sorted.indexOf(box);
-    const value = span === 0 ? first[axis] : first[axis] + (span * index) / (sorted.length - 1);
+    const value =
+      span === 0
+        ? first[axis]
+        : first[axis] + (span * index) / (sorted.length - 1);
     const other = axis === "x" ? box.y : box.x;
-    positions[box.id] = axis === "x" ? { x: value, y: other } : { x: other, y: value };
+    positions[box.id] =
+      axis === "x" ? { x: value, y: other } : { x: other, y: value };
   }
   return positions;
 }

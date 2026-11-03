@@ -9,7 +9,12 @@ import {
   type CourseTreeInput,
   type IdGenerator,
 } from "@/lib/canvas/generate";
-import { NOTE_CARD_SIZE, SECTION_GAP, SECTION_HEADER, SECTION_PADDING } from "@/lib/canvas/generate";
+import {
+  NOTE_CARD_SIZE,
+  SECTION_GAP,
+  SECTION_HEADER,
+  SECTION_PADDING,
+} from "@/lib/canvas/generate";
 import { canvasOp } from "@/lib/canvas/schemas";
 
 const counterIds = (prefix = "0d0d0d0d-0000-8000-0000"): IdGenerator => {
@@ -54,7 +59,10 @@ describe("grid helpers", () => {
   });
 
   it("positions grid cells leaving header and padding margins", () => {
-    expect(gridCellPosition(0, 1)).toEqual({ x: SECTION_PADDING, y: SECTION_HEADER + SECTION_PADDING });
+    expect(gridCellPosition(0, 1)).toEqual({
+      x: SECTION_PADDING,
+      y: SECTION_HEADER + SECTION_PADDING,
+    });
     expect(gridCellPosition(3, 4)).toEqual({
       x: SECTION_PADDING + 3 * (NOTE_CARD_SIZE.width + SECTION_GAP),
       y: SECTION_HEADER + SECTION_PADDING,
@@ -74,7 +82,10 @@ describe("grid helpers", () => {
       SECTION_PADDING * 2 + 3 * NOTE_CARD_SIZE.width + 2 * SECTION_GAP,
     );
     expect(five.height).toBe(
-      SECTION_HEADER + SECTION_PADDING * 2 + 2 * NOTE_CARD_SIZE.height + SECTION_GAP,
+      SECTION_HEADER +
+        SECTION_PADDING * 2 +
+        2 * NOTE_CARD_SIZE.height +
+        SECTION_GAP,
     );
   });
 });
@@ -108,21 +119,37 @@ describe("generatePlan — single canvas under the cap", () => {
 
   it("orders ops groups → cards → edges, with the core card at (0,0) colour 6", () => {
     const ops = plan[0]!.ops;
-    expect(ops.slice(0, 2).map((op) => op.op)).toEqual(["node.add", "node.add"]);
+    expect(ops.slice(0, 2).map((op) => op.op)).toEqual([
+      "node.add",
+      "node.add",
+    ]);
     expect(ops.slice(0, 2).map((op) => (op as { kind: string }).kind)).toEqual([
       "group",
       "group",
     ]);
-    expect(ops.slice(2, 7).map((op) => (op as { kind: string }).kind ?? "note")).toContain("note");
+    expect(
+      ops.slice(2, 7).map((op) => (op as { kind: string }).kind ?? "note"),
+    ).toContain("note");
     const last = ops[ops.length - 1]!;
-    expect(last).toMatchObject({ op: "edge.add", from_side: "right", to_side: "left" });
+    expect(last).toMatchObject({
+      op: "edge.add",
+      from_side: "right",
+      to_side: "left",
+    });
     const core = ops.find(
       (op) =>
         op.op === "node.add" &&
         (op as { kind: string }).kind === "note" &&
-        (op as { node_id?: string }).node_id === "eeeeeeee-0000-eeee-0000-000000000001",
+        (op as { node_id?: string }).node_id ===
+          "eeeeeeee-0000-eeee-0000-000000000001",
     )!;
-    expect(core).toMatchObject({ x: 0, y: 0, color: "6", width: 360, height: 200 });
+    expect(core).toMatchObject({
+      x: 0,
+      y: 0,
+      color: "6",
+      width: 360,
+      height: 200,
+    });
     expect(ops.filter((op) => op.op === "edge.add")).toHaveLength(2);
   });
 
@@ -166,8 +193,12 @@ describe("generatePlan — over the cap → chunked canvases", () => {
 
   it("the core canvas keeps the core card and one note card per noted section", () => {
     const ops = plan[0]!.ops;
-    expect(ops.filter((op) => op.op === "node.add" && (op as { kind: string }).kind === "note"))
-      .toHaveLength(3); // one per section (both have notes) + the core card
+    expect(
+      ops.filter(
+        (op) =>
+          op.op === "node.add" && (op as { kind: string }).kind === "note",
+      ),
+    ).toHaveLength(3); // one per section (both have notes) + the core card
     expect(ops.filter((op) => op.op === "edge.add")).toHaveLength(2);
   });
 });
@@ -179,7 +210,12 @@ describe("generatePlan — a course with no sections", () => {
     const plan = generatePlan(tree, 200, counterIds());
     expect(plan).toHaveLength(1);
     expect(plan[0]!.ops).toHaveLength(1);
-    expect(plan[0]!.ops[0]).toMatchObject({ op: "node.add", kind: "note", x: 0, y: 0 });
+    expect(plan[0]!.ops[0]).toMatchObject({
+      op: "node.add",
+      kind: "note",
+      x: 0,
+      y: 0,
+    });
   });
 });
 
@@ -200,7 +236,11 @@ describe("chunkOps", () => {
 
   it("keeps an empty list empty and respects a custom size", () => {
     expect(chunkOps([])).toEqual([]);
-    const op = { op: "node.update", id: "cccccccc-0000-cccc-0000-000000000001", x: 1 } as const;
+    const op = {
+      op: "node.update",
+      id: "cccccccc-0000-cccc-0000-000000000001",
+      x: 1,
+    } as const;
     expect(chunkOps([op, op, op], 2)).toHaveLength(2);
   });
 });

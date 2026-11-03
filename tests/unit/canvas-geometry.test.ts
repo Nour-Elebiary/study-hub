@@ -17,9 +17,13 @@ const box = (
   overrides: { width?: number; height?: number } = {},
 ) => ({ id, x, y, width: 100, height: 60, ...overrides });
 
-const asCard = (
-  b: { id: string; x: number; y: number; width: number; height: number },
-): CanvasCard => ({
+const asCard = (b: {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}): CanvasCard => ({
   ...b,
   kind: "text",
   nodeId: null,
@@ -47,11 +51,21 @@ describe("snap", () => {
 describe("rectOf / unionRect", () => {
   it("computes the rectangle with centre and edges", () => {
     const r = rectOf(box("a", 10, 20));
-    expect(r).toMatchObject({ left: 10, top: 20, right: 110, bottom: 80, cx: 60, cy: 50 });
+    expect(r).toMatchObject({
+      left: 10,
+      top: 20,
+      right: 110,
+      bottom: 80,
+      cx: 60,
+      cy: 50,
+    });
   });
 
   it("unions several boxes and returns null for an empty list", () => {
-    const r = unionRect([box("a", 0, 0), box("b", 200, 100, { width: 100, height: 60 })]);
+    const r = unionRect([
+      box("a", 0, 0),
+      box("b", 200, 100, { width: 100, height: 60 }),
+    ]);
     expect(r).toMatchObject({ left: 0, top: 0, right: 300, bottom: 160 });
     expect(unionRect([])).toBeNull();
   });
@@ -121,6 +135,8 @@ describe("distributeCards", () => {
   });
 
   it("does nothing with fewer than three boxes", () => {
-    expect(distributeCards([box("a", 0, 0), box("b", 200, 0)], "x")).toEqual({});
+    expect(distributeCards([box("a", 0, 0), box("b", 200, 0)], "x")).toEqual(
+      {},
+    );
   });
 });

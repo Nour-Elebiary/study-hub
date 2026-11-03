@@ -35,7 +35,7 @@ export default function Toolbar(props: ToolbarProps) {
     props.selectedCardIds.length === 1 ? props.selectedCardIds[0]! : null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b bg-background p-2">
+    <div className="bg-background flex flex-wrap items-center gap-2 border-b p-2">
       {props.canEdit ? (
         <>
           <AddButton label="Add text card" onClick={props.onAddText} />
@@ -64,7 +64,7 @@ export default function Toolbar(props: ToolbarProps) {
               aria-label={`Colour ${slot}${props.legend[slot] ? `: ${props.legend[slot]}` : ""}`}
               title={props.legend[slot] ?? `Colour ${slot}`}
               onClick={() => props.onRecolour(slot)}
-              className="h-7 w-7 rounded border border-border"
+              className="border-border h-7 w-7 rounded border"
             >
               <span
                 className="block h-full w-full rounded"
@@ -77,7 +77,7 @@ export default function Toolbar(props: ToolbarProps) {
             aria-label="No colour"
             title="No colour"
             onClick={() => props.onRecolour(null)}
-            className="bg-background h-7 w-7 rounded border border-border text-[10px] leading-none"
+            className="bg-background border-border h-7 w-7 rounded border text-[10px] leading-none"
           >
             ✕
           </button>
@@ -138,13 +138,7 @@ export default function Toolbar(props: ToolbarProps) {
   );
 }
 
-function AddButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
+function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       type="button"

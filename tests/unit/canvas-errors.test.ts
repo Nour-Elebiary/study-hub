@@ -33,12 +33,12 @@ describe("mapDbError", () => {
   });
 
   it("points cross-course content errors at the picker", () => {
-    expect(
-      mapDbError("note belongs to another course", LIMITS).user,
-    ).toContain("another course");
-    expect(
-      mapDbError("file belongs to another course", LIMITS).user,
-    ).toContain("another course");
+    expect(mapDbError("note belongs to another course", LIMITS).user).toContain(
+      "another course",
+    );
+    expect(mapDbError("file belongs to another course", LIMITS).user).toContain(
+      "another course",
+    );
   });
 
   it("explains that arrows connect only cards of the same canvas", () => {
@@ -59,12 +59,12 @@ describe("mapDbError", () => {
   });
 
   it("tells the leader a backup is gone", () => {
-    expect(
-      mapDbError("version not found", LIMITS).user,
-    ).toContain("no longer exists");
-    expect(
-      mapDbError("snapshot not found", LIMITS).user,
-    ).toContain("no longer exists");
+    expect(mapDbError("version not found", LIMITS).user).toContain(
+      "no longer exists",
+    );
+    expect(mapDbError("snapshot not found", LIMITS).user).toContain(
+      "no longer exists",
+    );
   });
 
   it("falls back to a safe generic line for anything unknown", () => {

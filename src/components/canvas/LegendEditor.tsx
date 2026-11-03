@@ -73,7 +73,7 @@ export default function LegendEditor({
             <label key={slot} className="flex items-center gap-2 text-xs">
               <span
                 aria-hidden="true"
-                className="inline-block h-6 w-6 rounded border border-border"
+                className="border-border inline-block h-6 w-6 rounded border"
                 style={{ background: `var(--canvas-${slot})` }}
               />
               <span className="sr-only">Colour {slot}</span>

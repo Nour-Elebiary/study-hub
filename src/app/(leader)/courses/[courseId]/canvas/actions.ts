@@ -47,7 +47,8 @@ import type { z } from "zod";
  * `canvas_ops` 240/min, `canvas_create` 20/h.
  */
 
-export type CanvasActionState = { error: string } | { ok: true; canvasId?: string } | null;
+export type CanvasActionState =
+  { error: string } | { ok: true; canvasId?: string } | null;
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -204,7 +205,10 @@ export async function publishCanvasAction(
   const allowed = await canEdit(courseId);
   if (!allowed) return failed("You are not allowed to edit this course.");
 
-  const result = await setPublished(parsed.data.canvas_id, parsed.data.published);
+  const result = await setPublished(
+    parsed.data.canvas_id,
+    parsed.data.published,
+  );
   if (!result.ok) {
     console.error("setPublished failed:", result.log);
     return failed(result.user);
@@ -316,7 +320,10 @@ export async function saveVersionAction(
   const allowed = await canEdit(courseId);
   if (!allowed) return failed("You are not allowed to edit this course.");
 
-  const result = await saveVersion(parsed.data.canvas_id, parsed.data.label ?? "");
+  const result = await saveVersion(
+    parsed.data.canvas_id,
+    parsed.data.label ?? "",
+  );
   if (!result.ok) {
     console.error("saveVersion failed:", result.log);
     return failed(result.user);
@@ -351,9 +358,7 @@ export async function restoreVersionAction(
 }
 
 /** The backup list for the Versions sheet (client opens it on demand). */
-export async function listVersionsAction(
-  canvasId: string,
-): Promise<
+export async function listVersionsAction(canvasId: string): Promise<
   | {
       ok: true;
       versions: {
@@ -375,10 +380,11 @@ export async function listVersionsAction(
 }
 
 /** Note picker list for "Add note" (only notes of this course). */
-export async function listPickerNotesAction(
-  courseId: string,
-): Promise<
-  { ok: true; notes: { id: string; title: string; area: string; published: boolean }[] }
+export async function listPickerNotesAction(courseId: string): Promise<
+  | {
+      ok: true;
+      notes: { id: string; title: string; area: string; published: boolean }[];
+    }
   | { error: string }
 > {
   await requireSession();
@@ -389,9 +395,7 @@ export async function listPickerNotesAction(
 }
 
 /** File picker list for "Add file" (only files of this course). */
-export async function listPickerFilesAction(
-  courseId: string,
-): Promise<
+export async function listPickerFilesAction(courseId: string): Promise<
   | {
       ok: true;
       files: {
@@ -433,7 +437,8 @@ export async function applyCanvasOpsAction(
   const courseId = await courseOf(canvasId);
   if (!courseId) return { error: "This map no longer exists.", refetch: true };
   const allowed = await canEdit(courseId);
-  if (!allowed) return { error: "You are not allowed to edit this map.", refetch: true };
+  if (!allowed)
+    return { error: "You are not allowed to edit this map.", refetch: true };
 
   if (!(await checkRateLimit("canvas_ops", getClientIp(await headers())))) {
     return {
@@ -473,10 +478,7 @@ export async function generateCanvasAction(
   | { error: string; refetch: true }
 > {
   await requireSession();
-  if (
-    !UUID_PATTERN.test(courseId) ||
-    !(await canEdit(courseId))
-  ) {
+  if (!UUID_PATTERN.test(courseId) || !(await canEdit(courseId))) {
     return { error: "You are not allowed to edit this course.", refetch: true };
   }
   if (!(await checkRateLimit("canvas_create", getClientIp(await headers())))) {
@@ -495,7 +497,11 @@ export async function generateCanvasAction(
   const plan = generatePlan(tree, maxCards, () => crypto.randomUUID());
 
   if (plan.length === 0) {
-    return { ok: true, canvases: 0, message: "There is nothing to map yet in this course." };
+    return {
+      ok: true,
+      canvases: 0,
+      message: "There is nothing to map yet in this course.",
+    };
   }
 
   let created = 0;
@@ -541,10 +547,7 @@ export async function generateCanvasAction(
     meta: { course_id: courseId, generated: true, canvases: created },
   });
 
-  revalidateCourse(
-    courseId,
-    firstCanvasId ?? undefined,
-  );
+  revalidateCourse(courseId, firstCanvasId ?? undefined);
 
   return {
     ok: true,

@@ -83,8 +83,7 @@ export type CanvasDetail = {
 
 /** Every DAL write returns a plain-language result instead of throwing. */
 export type CanvasResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; user: string; log: string };
+  { ok: true; data: T } | { ok: false; user: string; log: string };
 
 const ok = <T>(data: T): CanvasResult<T> => ({ ok: true, data });
 const fail = <T>(user: string, log: string): CanvasResult<T> => ({
@@ -241,9 +240,7 @@ const EDGE_COLUMNS =
  * course, other callers only published ones — the caller's RLS decides, so
  * this stays one query.
  */
-export async function listCanvases(
-  courseId: string,
-): Promise<CanvasListRow[]> {
+export async function listCanvases(courseId: string): Promise<CanvasListRow[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("canvases")
@@ -267,7 +264,9 @@ export async function listCanvases(
  * flag) in at most 4 queries — one canvas query with both embeds, then one
  * `in` query per target table. No N+1.
  */
-export async function getCanvas(canvasId: string): Promise<CanvasDetail | null> {
+export async function getCanvas(
+  canvasId: string,
+): Promise<CanvasDetail | null> {
   const supabase = await createClient();
 
   // Query 1: canvas + cards + edges (RLS of all three tables applies inside
@@ -296,10 +295,17 @@ export async function getCanvas(canvasId: string): Promise<CanvasDetail | null> 
 
 /** Bulk-resolves the note/file targets of the given cards (2 queries). */
 async function resolveTargets(
-  supabase: Awaited<ReturnType<typeof createClient>> | Awaited<ReturnType<typeof createAdminClient>>,
+  supabase:
+    | Awaited<ReturnType<typeof createClient>>
+    | Awaited<ReturnType<typeof createAdminClient>>,
   cards: CanvasCard[],
-): Promise<{ notes: Record<string, ResolvedNote>; files: Record<string, ResolvedFile> }> {
-  const noteIds = [...new Set(cards.flatMap((c) => (c.nodeId ? [c.nodeId] : [])))];
+): Promise<{
+  notes: Record<string, ResolvedNote>;
+  files: Record<string, ResolvedFile>;
+}> {
+  const noteIds = [
+    ...new Set(cards.flatMap((c) => (c.nodeId ? [c.nodeId] : []))),
+  ];
   const fileIds = [
     ...new Set(cards.flatMap((c) => (c.assetId ? [c.assetId] : []))),
   ];
@@ -418,7 +424,9 @@ export async function getStudentCanvas(
       const file = files[card.assetId];
       return Boolean(file) && file!.visible;
     }
-    return card.kind === "text" || card.kind === "link" || card.kind === "group";
+    return (
+      card.kind === "text" || card.kind === "link" || card.kind === "group"
+    );
   });
 
   const kept = new Set(cards.map((c) => c.id));
@@ -427,11 +435,13 @@ export async function getStudentCanvas(
   // Targets of hidden cards are not for the student — keep only the visible.
   const visibleNotes: Record<string, ResolvedNote> = {};
   for (const card of cards) {
-    if (card.nodeId && notes[card.nodeId]) visibleNotes[card.nodeId] = notes[card.nodeId]!;
+    if (card.nodeId && notes[card.nodeId])
+      visibleNotes[card.nodeId] = notes[card.nodeId]!;
   }
   const visibleFiles: Record<string, ResolvedFile> = {};
   for (const card of cards) {
-    if (card.assetId && files[card.assetId]) visibleFiles[card.assetId] = files[card.assetId]!;
+    if (card.assetId && files[card.assetId])
+      visibleFiles[card.assetId] = files[card.assetId]!;
   }
 
   return {
@@ -463,9 +473,7 @@ export async function getStudentDefaultCanvas(
 }
 
 /** Just the map's course id — used by server actions for the TS-side check. */
-export async function canvasCourseId(
-  canvasId: string,
-): Promise<string | null> {
+export async function canvasCourseId(canvasId: string): Promise<string | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("canvases")
@@ -604,7 +612,12 @@ export async function saveVersion(
   }
   const { data, error } = await supabase
     .from("canvas_versions")
-    .insert({ canvas_id: canvasId, label: label || null, auto: false, snapshot })
+    .insert({
+      canvas_id: canvasId,
+      label: label || null,
+      auto: false,
+      snapshot,
+    })
     .select("version_no")
     .single();
   if (error || !data) return failWithError(error?.message ?? "no version_no");
@@ -752,7 +765,8 @@ export async function restoreCanvas(
   return ok<void>(void 0);
 }
 
-const retentionDeletedDays = () => settingsNumber("retention_deleted_note_days");
+const retentionDeletedDays = () =>
+  settingsNumber("retention_deleted_note_days");
 
 /** Publish/unpublish (the designer's switch; audit comes from the action). */
 export async function setPublished(
@@ -914,9 +928,7 @@ export type PickerFile = {
 };
 
 /** Live notes of the course in stored order (the note picker). */
-export async function listCourseNotes(
-  courseId: string,
-): Promise<PickerNote[]> {
+export async function listCourseNotes(courseId: string): Promise<PickerNote[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("nodes")
@@ -934,9 +946,7 @@ export async function listCourseNotes(
 }
 
 /** Live assets of the course, newest first (the file picker). */
-export async function listCourseFiles(
-  courseId: string,
-): Promise<PickerFile[]> {
+export async function listCourseFiles(courseId: string): Promise<PickerFile[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("assets")

@@ -94,10 +94,23 @@ const nodeAdd = z
     // (whose cast would raise a raw database error instead).
     const v = ctx.value;
     const ok =
-      (v.kind === "note" && typeof v.node_id === "string" && !v.asset_id && !v.url) ||
-      (v.kind === "file" && typeof v.asset_id === "string" && !v.node_id && !v.url) ||
-      (v.kind === "link" && typeof v.url === "string" && !v.node_id && !v.asset_id) ||
-      (v.kind === "text" && typeof v.body === "string" && !v.node_id && !v.asset_id && !v.url) ||
+      (v.kind === "note" &&
+        typeof v.node_id === "string" &&
+        !v.asset_id &&
+        !v.url) ||
+      (v.kind === "file" &&
+        typeof v.asset_id === "string" &&
+        !v.node_id &&
+        !v.url) ||
+      (v.kind === "link" &&
+        typeof v.url === "string" &&
+        !v.node_id &&
+        !v.asset_id) ||
+      (v.kind === "text" &&
+        typeof v.body === "string" &&
+        !v.node_id &&
+        !v.asset_id &&
+        !v.url) ||
       (v.kind === "group" && !v.node_id && !v.asset_id && !v.url);
     if (!ok) {
       ctx.issues.push({

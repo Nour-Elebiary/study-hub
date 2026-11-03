@@ -1,8 +1,8 @@
 # Study Hub — The Complete Project Guide
 
-*Everything in one file: what the product is, how every screen looks and behaves, how
+_Everything in one file: what the product is, how every screen looks and behaves, how
 every piece connects to every other piece, and what software, technologies and
-platforms make it run.*
+platforms make it run._
 
 This document is written in two registers on purpose: the story sections (1, 2, 7, 9)
 are plain language for non-technical leaders, and the reference sections (3–6, 8, 10–17)
@@ -62,11 +62,11 @@ Postgres-enforced access control.
 
 ## 2. Who uses it (the three audiences)
 
-| Audience | Account? | Signs in how | What they can do |
-|---|---|---|---|
-| **Admin** | Yes (email + password in Supabase GoTrue) | `/login` | Everything: manage team members, courses and their contents, roles, settings, AI limits, backups, audit log, health dashboard |
-| **Leader** | Yes | `/login` | The everyday creator: courses they own, note writing in TipTap, file uploads, jobs, tags, comments, the map, AI panel, own AI keys |
-| **Student** | **No account at all** | Opens a join link / types join code at `/s/join` | Read-only view of the courses they joined, in a simplified interface — tracked by a signed browser cookie |
+| Audience    | Account?                                  | Signs in how                                     | What they can do                                                                                                                   |
+| ----------- | ----------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Admin**   | Yes (email + password in Supabase GoTrue) | `/login`                                         | Everything: manage team members, courses and their contents, roles, settings, AI limits, backups, audit log, health dashboard      |
+| **Leader**  | Yes                                       | `/login`                                         | The everyday creator: courses they own, note writing in TipTap, file uploads, jobs, tags, comments, the map, AI panel, own AI keys |
+| **Student** | **No account at all**                     | Opens a join link / types join code at `/s/join` | Read-only view of the courses they joined, in a simplified interface — tracked by a signed browser cookie                          |
 
 A screening password gate applies to chosen accounts: an admin flips
 `must_change_password` on a team member, and that person must set a new password
@@ -135,44 +135,44 @@ The glue points, one sentence each:
 
 ## 4. Platforms and technologies
 
-| Layer | Choice | Why |
-|---|---|---|
-| Framework | **Next.js 16.4.3** (App Router, Turbopack, `tsx` via `next typegen`) | Server components for fast reads, server actions for writes, API routes for the worker/AI protocols |
-| UI runtime | **React 19.3** | The current stable concurrent runtime |
-| Language | **TypeScript, strict, no `any`** (constitution rule 3) | Mistakes surface at compile time, not in class |
-| Styling | **Tailwind CSS 4** | Utility-first, small stylesheet, dark-mode-aware classes |
-| Database | **Supabase (hosted, Postgres 15+)** project ref `mgabdxvrlnctbgvipvvf` (eu-north-1) | Free tier, managed auth + storage + Postgres with RLS |
-| Auth | **GoTrue** (Supabase Auth) | Email+password for team members only |
-| Storage | **Supabase Storage**, one private bucket `assets` | RLS-checked assets, direct browser upload |
-| Deployment | **Vercel**-style hosting (code reads Vercel's `x-forwarded-for` proxies) | The `APP_URL` secret points at the live deployment |
-| Local jobs (browser) | **tesseract.js**, pdf-lib, mammoth + turndown, xlsx (vendored), Whisper via @huggingface/transformers | Runs on the learner's/leader's own device — zero server cost |
-| Heavy jobs | **Python 3 worker** with ffmpeg + tesseract CLI (`worker/`) | A leader's own PC does the heavy lifting free |
-| AI | **Google Gemini API** via per-leader keys | Bring-your-own-key with admin-enforced per-key quotas |
-| CI/CD, backups | **GitHub Actions** (`ci.yml`, `backup.yml`, `keepalive.yml`) | Free runner minutes, loud failures by email |
-| Tests | **Vitest 5** (unit), **Playwright 1.64.1** (e2e + axe-core a11y), **pg**-based RLS tests | Three independent nets |
-| PWA | Manifest + `public/sw.js` service worker | Installed app, offline shell |
+| Layer                | Choice                                                                                                | Why                                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Framework            | **Next.js 16.4.3** (App Router, Turbopack, `tsx` via `next typegen`)                                  | Server components for fast reads, server actions for writes, API routes for the worker/AI protocols |
+| UI runtime           | **React 19.3**                                                                                        | The current stable concurrent runtime                                                               |
+| Language             | **TypeScript, strict, no `any`** (constitution rule 3)                                                | Mistakes surface at compile time, not in class                                                      |
+| Styling              | **Tailwind CSS 4**                                                                                    | Utility-first, small stylesheet, dark-mode-aware classes                                            |
+| Database             | **Supabase (hosted, Postgres 15+)** project ref `mgabdxvrlnctbgvipvvf` (eu-north-1)                   | Free tier, managed auth + storage + Postgres with RLS                                               |
+| Auth                 | **GoTrue** (Supabase Auth)                                                                            | Email+password for team members only                                                                |
+| Storage              | **Supabase Storage**, one private bucket `assets`                                                     | RLS-checked assets, direct browser upload                                                           |
+| Deployment           | **Vercel**-style hosting (code reads Vercel's `x-forwarded-for` proxies)                              | The `APP_URL` secret points at the live deployment                                                  |
+| Local jobs (browser) | **tesseract.js**, pdf-lib, mammoth + turndown, xlsx (vendored), Whisper via @huggingface/transformers | Runs on the learner's/leader's own device — zero server cost                                        |
+| Heavy jobs           | **Python 3 worker** with ffmpeg + tesseract CLI (`worker/`)                                           | A leader's own PC does the heavy lifting free                                                       |
+| AI                   | **Google Gemini API** via per-leader keys                                                             | Bring-your-own-key with admin-enforced per-key quotas                                               |
+| CI/CD, backups       | **GitHub Actions** (`ci.yml`, `backup.yml`, `keepalive.yml`)                                          | Free runner minutes, loud failures by email                                                         |
+| Tests                | **Vitest 5** (unit), **Playwright 1.64.1** (e2e + axe-core a11y), **pg**-based RLS tests              | Three independent nets                                                                              |
+| PWA                  | Manifest + `public/sw.js` service worker                                                              | Installed app, offline shell                                                                        |
 
 ## 5. Every dependency and its purpose
 
 **Runtime dependencies** (`package.json` `dependencies`):
 
-| Package | Purpose |
-|---|---|
-| `next` 16.4.3 / `react` / `react-dom` 19.3 | Framework and UI |
-| `@supabase/ssr` ^0.12.7 | Cookie-based Supabase clients for Next (server, middleware, browser) |
-| `@supabase/supabase-js` ^2.118.0 | The actual Supabase http/db/storage client |
-| `@tiptap/*` 3.32.0 | The rich-text note editor: `@tiptap/react` + `@tiptap/core`, `@tiptap/starter-kit` (headings, bold/italic, lists…), `@tiptap/pm` (ProseMirror), table extensions (`-table`, `-table-cell`, `-table-header`, `-table-row`), and `@tiptap/markdown` for Markdown serialisation |
-| `@xyflow/react` | The course **mind map** (drag/pan/zoom React Flow canvas) |
-| `zod` 4 | Validate every input at the boundary (server actions, API routes, job params) |
-| `tesseract.js` | OCR in the browser for photos (job runner `browser`) |
-| `pdfjs-dist` | Reading PDF text/pages in the browser (PDF tools + PDF-scan OCR preflight) |
-| `pdf-lib` | Merge / split PDFs in the browser |
-| `mammoth` + `turndown` | Word (.docx) → HTML → Markdown in the browser |
-| `jszip` | ZIP assembly for the admin export (`/api/admin/export`) and merge inputs |
-| `xlsx` (pinned `file:vendor/xlsx-0.20.3.tgz`) | Excel → CSV in the browser; pinned locally for npm audit reasons |
-| `qrcode` | Join-code QR codes shown to leaders |
-| `@huggingface/transformers` 4.3.2 | **Whisper** running in the leader's browser (the `browser` transcription fallback, audio ≤ 10 min) |
-| `next-intl` | i18n plumbing; `en` shipped (`src/messages/en.json`) |
+| Package                                       | Purpose                                                                                                                                                                                                                                                                      |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `next` 16.4.3 / `react` / `react-dom` 19.3    | Framework and UI                                                                                                                                                                                                                                                             |
+| `@supabase/ssr` ^0.12.7                       | Cookie-based Supabase clients for Next (server, middleware, browser)                                                                                                                                                                                                         |
+| `@supabase/supabase-js` ^2.118.0              | The actual Supabase http/db/storage client                                                                                                                                                                                                                                   |
+| `@tiptap/*` 3.32.0                            | The rich-text note editor: `@tiptap/react` + `@tiptap/core`, `@tiptap/starter-kit` (headings, bold/italic, lists…), `@tiptap/pm` (ProseMirror), table extensions (`-table`, `-table-cell`, `-table-header`, `-table-row`), and `@tiptap/markdown` for Markdown serialisation |
+| `@xyflow/react`                               | The course **mind map** (drag/pan/zoom React Flow canvas)                                                                                                                                                                                                                    |
+| `zod` 4                                       | Validate every input at the boundary (server actions, API routes, job params)                                                                                                                                                                                                |
+| `tesseract.js`                                | OCR in the browser for photos (job runner `browser`)                                                                                                                                                                                                                         |
+| `pdfjs-dist`                                  | Reading PDF text/pages in the browser (PDF tools + PDF-scan OCR preflight)                                                                                                                                                                                                   |
+| `pdf-lib`                                     | Merge / split PDFs in the browser                                                                                                                                                                                                                                            |
+| `mammoth` + `turndown`                        | Word (.docx) → HTML → Markdown in the browser                                                                                                                                                                                                                                |
+| `jszip`                                       | ZIP assembly for the admin export (`/api/admin/export`) and merge inputs                                                                                                                                                                                                     |
+| `xlsx` (pinned `file:vendor/xlsx-0.20.3.tgz`) | Excel → CSV in the browser; pinned locally for npm audit reasons                                                                                                                                                                                                             |
+| `qrcode`                                      | Join-code QR codes shown to leaders                                                                                                                                                                                                                                          |
+| `@huggingface/transformers` 4.3.2             | **Whisper** running in the leader's browser (the `browser` transcription fallback, audio ≤ 10 min)                                                                                                                                                                           |
+| `next-intl`                                   | i18n plumbing; `en` shipped (`src/messages/en.json`)                                                                                                                                                                                                                         |
 
 **Dev dependencies**: `playwright` (+ `axe-core` injected for accessibility checks),
 `vitest` 5, `tailwindcss` 4 + PostCSS, `@types/*` and `typescript`,
@@ -189,25 +189,25 @@ migrations** (`supabase/migrations/00001` … `00017`). Every table has RLS
 **enabled and forced**; users own nothing the database itself doesn't confirm
 (46+ policies).
 
-| Migration | Milestone | Creates / changes |
-|---|---|---|
-| `00001_foundation_schema` | M0 | `profiles`, `courses`, `course_members`, `settings`, `audit_log` |
-| `00002_m1_admin` | M1 | admin check function, admin-guard, audit triggers, settings reader RPC |
-| `00003_m1_roles` | (same area) | role enums/refinements |
-| `00004_m1_admin` | M1 | invites + admin flows |
-| `00005_m2_content` | M2 | `nodes`, `node_versions` (immutable), `tags`, `node_tags`, `comments`, `locks` |
-| `00006_m3_assets` | M3 | `assets` + the private storage bucket + `can_access_storage_path` |
-| `00007_m4_student` | M4 | `join_codes` (hashed), `suggestions`, `private.rate_limits` |
-| `00008_m5_jobs` | M5 | `jobs` |
-| `00009_m6_worker` | M6 | `worker_heartbeats`, worker bookings, double-claim protection |
-| `00010_m7_ai` | M7 | `ai_keys`, `ai_limits`, `ai_usage`, `ai_conversations`, `ai_messages`, `ai_handoffs` |
-| `00011_m7_ai_limits_defaults` | M7 | default model-limit rows |
-| `00012_m8_health` | M8 | health-check function, audit-log/db usage RPCs |
-| `00013_node_versions_immutable` | hardening | no UPDATE/DELETE on versions except owner-editor |
-| `00014_rate_limit_execute` | hardening | `EXECUTE` revoked from client roles |
-| `00015_jobs_created_by_default` | hardening | RLS insert fix for `jobs` |
-| `00016_touch_updated_at_search_path` | hardening | `search_path=''` on `set_updated_at` |
-| `00017_drop_password_trigger` | bug fix #1 | removed the GoTrue `on_user_password_changed` trigger that disarmed the password gate |
+| Migration                            | Milestone   | Creates / changes                                                                     |
+| ------------------------------------ | ----------- | ------------------------------------------------------------------------------------- |
+| `00001_foundation_schema`            | M0          | `profiles`, `courses`, `course_members`, `settings`, `audit_log`                      |
+| `00002_m1_admin`                     | M1          | admin check function, admin-guard, audit triggers, settings reader RPC                |
+| `00003_m1_roles`                     | (same area) | role enums/refinements                                                                |
+| `00004_m1_admin`                     | M1          | invites + admin flows                                                                 |
+| `00005_m2_content`                   | M2          | `nodes`, `node_versions` (immutable), `tags`, `node_tags`, `comments`, `locks`        |
+| `00006_m3_assets`                    | M3          | `assets` + the private storage bucket + `can_access_storage_path`                     |
+| `00007_m4_student`                   | M4          | `join_codes` (hashed), `suggestions`, `private.rate_limits`                           |
+| `00008_m5_jobs`                      | M5          | `jobs`                                                                                |
+| `00009_m6_worker`                    | M6          | `worker_heartbeats`, worker bookings, double-claim protection                         |
+| `00010_m7_ai`                        | M7          | `ai_keys`, `ai_limits`, `ai_usage`, `ai_conversations`, `ai_messages`, `ai_handoffs`  |
+| `00011_m7_ai_limits_defaults`        | M7          | default model-limit rows                                                              |
+| `00012_m8_health`                    | M8          | health-check function, audit-log/db usage RPCs                                        |
+| `00013_node_versions_immutable`      | hardening   | no UPDATE/DELETE on versions except owner-editor                                      |
+| `00014_rate_limit_execute`           | hardening   | `EXECUTE` revoked from client roles                                                   |
+| `00015_jobs_created_by_default`      | hardening   | RLS insert fix for `jobs`                                                             |
+| `00016_touch_updated_at_search_path` | hardening   | `search_path=''` on `set_updated_at`                                                  |
+| `00017_drop_password_trigger`        | bug fix #1  | removed the GoTrue `on_user_password_changed` trigger that disarmed the password gate |
 
 **The tables, by domain:**
 
@@ -229,7 +229,7 @@ migrations** (`supabase/migrations/00001` … `00017`). Every table has RLS
 - **Jobs** — `jobs` (`type` ∈ ocr/convert/transcribe/ai_task, `params` JSONB
   discriminated union, `runner`, `status` ∈ queued/running/done/failed/waiting_quota,
   attempts + retry timestamps), `worker_heartbeats`.
-- **AI** — `ai_keys` (owner's key, *ciphertext*, project label, status,
+- **AI** — `ai_keys` (owner's key, _ciphertext_, project label, status,
   cooldown), `ai_limits` (admin-editable per-model rpm/tpm/rpd + soft %), `ai_usage`
   (minute-bucket + day-bucket counters, Pacific-midnight days), `ai_conversations`
   / `ai_messages` / `ai_handoffs` (chat threads shared into a note).
@@ -245,7 +245,8 @@ mints a temporary RLS role path.
 
 ## 7. The user experience, screen by screen
 
-*Layout skeleton (verified by measurement at 360 / 768 / 1024 / 1280 px):*
+_Layout skeleton (verified by measurement at 360 / 768 / 1024 / 1280 px):_
+
 - **< 768 px**: bottom navigation bar (`/courses`, `/search`, `/jobs`, Home…),
   no sidebar. Top bar with the course/site name.
 - **≥ 768 px**: sidebar appears (at 768 it is 784 px content; 1024+ the sidebar
@@ -263,7 +264,7 @@ mints a temporary RLS role path.
 - **`/reset-password`** — sets a new password when the gate is armed. Screen
   explains the rule, enforces the password policy, errors when GoTrue rejects
   (e.g. re-using the same password). Bug fix #1 lives here app-side: after a
-  *real* change the server clears the flag with the service-role client.
+  _real_ change the server clears the flag with the service-role client.
 
 ### Leader app (`(leader)` route group — the main app for signed-in users)
 
@@ -342,7 +343,7 @@ re-validate on the server.
 - **Team members (admin/leader)**: Supabase GoTrue email+password. The Next
   **proxy** (`src/proxy.ts`, Next 16's middleware) runs `updateSession`
   (`lib/supabase/middleware.ts`) on every request: it refreshes the session
-  cookies via `supabase.auth.getUser()` — *`getUser()`, never `getSession()`*:
+  cookies via `supabase.auth.getUser()` — _`getUser()`, never `getSession()`_:
   the JWT is re-verified against the auth server, so a tampered cookie can't
   impersonate anyone.
 - **Role resolution**: `admin-auth.ts` / `profiles.role` gives admin;
@@ -374,7 +375,7 @@ re-validate on the server.
    `published_version_id` — unstated = draft (invisible to students).
 4. **Tags** connect nodes across courses; **comments** attach to nodes;
    **assets** (files) attach to a node or the course.
-5. Assets can be *enhanced* by jobs: OCR the photo → text is saved as the
+5. Assets can be _enhanced_ by jobs: OCR the photo → text is saved as the
    asset's result; converting a Word file → Markdown is proposed as note body
    material (the leader chooses what to paste in).
 6. Students eventually read the **published** version at `/s/notes/[id]` — the
@@ -390,25 +391,25 @@ re-validate on the server.
 policy and param schemas; both server and client import it so nothing can
 diverge.
 
-| Job type | Where it runs | Tooling |
-|---|---|---|
-| `ocr` from an **image** | `browser` | tesseract.js (leader picks English and/or Arabic — never auto-detect) |
-| `ocr` from a **scanned PDF** | `worker` | Home Worker tesseract over the rasterised pages |
-| `convert.word_to_markdown` | `browser` | mammoth → turndown |
-| `convert.excel_to_csv` | `browser` | xlsx (vendored) |
-| `convert.pdf_merge` / `pdf_split` | `browser` | pdf-lib |
-| `convert.office_to_pdf` | `worker` | LibreOffice on the leader's PC |
-| `convert.video_to_audio` | `worker` | ffmpeg (MP3 extraction) |
-| `convert.compress_video` | `worker` | ffmpeg (quality ladder) |
-| `transcribe` (browser flag, audio ≤ 10 min) | `browser` | Whisper via `@huggingface/transformers` |
-| `transcribe` (default for anything else) | `worker` | Whisper on the leader's PC |
-| `ai_task` | `ai` runner | routed to the AI subsystem (§11) |
+| Job type                                    | Where it runs | Tooling                                                               |
+| ------------------------------------------- | ------------- | --------------------------------------------------------------------- |
+| `ocr` from an **image**                     | `browser`     | tesseract.js (leader picks English and/or Arabic — never auto-detect) |
+| `ocr` from a **scanned PDF**                | `worker`      | Home Worker tesseract over the rasterised pages                       |
+| `convert.word_to_markdown`                  | `browser`     | mammoth → turndown                                                    |
+| `convert.excel_to_csv`                      | `browser`     | xlsx (vendored)                                                       |
+| `convert.pdf_merge` / `pdf_split`           | `browser`     | pdf-lib                                                               |
+| `convert.office_to_pdf`                     | `worker`      | LibreOffice on the leader's PC                                        |
+| `convert.video_to_audio`                    | `worker`      | ffmpeg (MP3 extraction)                                               |
+| `convert.compress_video`                    | `worker`      | ffmpeg (quality ladder)                                               |
+| `transcribe` (browser flag, audio ≤ 10 min) | `browser`     | Whisper via `@huggingface/transformers`                               |
+| `transcribe` (default for anything else)    | `worker`      | Whisper on the leader's PC                                            |
+| `ai_task`                                   | `ai` runner   | routed to the AI subsystem (§11)                                      |
 
 - Retry: up to **3 attempts** with **5 s → 15 s → 45 s** backoff; real failures
   record the error text on the job row.
 - **Browser-finishing jobs** write their result through a server action which
   re-validates the same schema (spec section 7 rule 2).
-- **Worker jobs** are *claimed* by exactly one worker (sleep/ICS-like claim row
+- **Worker jobs** are _claimed_ by exactly one worker (sleep/ICS-like claim row
   in `jobs`, and `worker_heartbeats` for liveness); the claim response carries a
   signed **download URL** and **upload path/URL** so the worker speaks to
   Storage directly for the big bytes, then reports through `complete`.
@@ -419,19 +420,20 @@ diverge.
 
 **Principled design (spec section 8):** every key is created **in its owner's
 own Google account/project**, stored **encrypted** (`lib/ai-crypto.ts`; only
-ciphertext in the DB) and used *only* by that owner. No code hides which project
+ciphertext in the DB) and used _only_ by that owner. No code hides which project
 a request comes from, rotates accounts, or evades quota control — those are the
 constitution's red lines (rule 9).
 
 **The flow:**
+
 1. The leader's browser opens the **AI side panel** and posts to
    `/api/ai/task` (one-shot) or `/api/ai/chat` (conversation, SSE).
 2. The server checks the leader's **daily allowance**
    (`settings.ai_daily_allowance_per_leader`; `0` turns AI off for everyone)
    and the **per-IP chat burst** rate limit (20/min).
-3. `lib/ai/router.ts` builds candidates — *the caller's own active keys × the
+3. `lib/ai/router.ts` builds candidates — _the caller's own active keys × the
    models listed in `ai_limits`, preference order
-   `gemini-2.5-flash-lite` → `gemini-2.5-flash` (cheapest first)* — and for each
+   `gemini-2.5-flash-lite` → `gemini-2.5-flash` (cheapest first)_ — and for each
    candidate **projects** this call against the minute and day usage buckets,
    picking the candidate whose **worst projected ratio is lowest**.
 4. The call goes to Gemini with the assembled context (chosen by the leader:
@@ -461,13 +463,13 @@ extra service, and the function's `EXECUTE` is revoked from client roles
 (migration `00014`). Keys are **HMAC-SHA-256 hashes of the caller's IP +
 purpose prefix** — the app never stores a raw IP (privacy rule).
 
-| Purpose | Limit | Window |
-|---|---|---|
-| `join` (join-code check) | 5 | per minute |
-| `suggest` (student suggestions) | 3 | per hour |
-| `login` | 5 | per 15 minutes |
-| `ai_key` (adding keys) | 5 | per hour |
-| `ai_chat` | 20 | per minute (the *daily allowance* in `settings` is the real control) |
+| Purpose                         | Limit | Window                                                               |
+| ------------------------------- | ----- | -------------------------------------------------------------------- |
+| `join` (join-code check)        | 5     | per minute                                                           |
+| `suggest` (student suggestions) | 3     | per hour                                                             |
+| `login`                         | 5     | per 15 minutes                                                       |
+| `ai_key` (adding keys)          | 5     | per hour                                                             |
+| `ai_chat`                       | 20    | per minute (the _daily allowance_ in `settings` is the real control) |
 
 A broken limiter **fails closed** (`checkRateLimit` returns false on error) —
 an outage can't become an open door. Join codes themselves are stored
@@ -479,16 +481,16 @@ hashed (never plaintext) with per-code validity owned by leaders.
 default, min and max; `/admin/settings` edits them; all readers go through
 `readSettings()` which back-fills defaults for missing rows.
 
-| Key | Default | Meaning |
-|---|---|---|
-| `site_name` | "Study Hub" | Shown on sign-in and in leader messages |
-| `max_file_mb` | 10 | Upload ceiling shown in UI; storage bucket hard-caps at 10 MB too |
-| `retention_ai_days` | 90 | AI conversation lifetime |
-| `retention_audit_days` | 365 | Audit log lifetime |
-| `retention_deleted_note_days` | 30 | Restore window for deleted notes |
-| `ai_daily_allowance_per_leader` | 0 (AI off) | Daily AI messages per leader |
-| `db_limit_mb` | 500 | Free-tier DB ceiling the health screen measures against |
-| `storage_limit_mb` | 1024 | Free-tier storage ceiling ditto |
+| Key                             | Default     | Meaning                                                           |
+| ------------------------------- | ----------- | ----------------------------------------------------------------- |
+| `site_name`                     | "Study Hub" | Shown on sign-in and in leader messages                           |
+| `max_file_mb`                   | 10          | Upload ceiling shown in UI; storage bucket hard-caps at 10 MB too |
+| `retention_ai_days`             | 90          | AI conversation lifetime                                          |
+| `retention_audit_days`          | 365         | Audit log lifetime                                                |
+| `retention_deleted_note_days`   | 30          | Restore window for deleted notes                                  |
+| `ai_daily_allowance_per_leader` | 0 (AI off)  | Daily AI messages per leader                                      |
+| `db_limit_mb`                   | 500         | Free-tier DB ceiling the health screen measures against           |
+| `storage_limit_mb`              | 1024        | Free-tier storage ceiling ditto                                   |
 
 ## 14. Server-side surface: server actions and API routes
 
@@ -502,18 +504,18 @@ client for self-scope ops** → audit-log the admin-level actions
 
 **API routes** (the `app/api/**/route.ts` set, 12 routes):
 
-| Route | Purpose |
-|---|---|
-| `GET /api/health` | Health check + keep-alive ping (one trivial DB query) |
-| `POST /api/worker/claim` | Home Worker: authenticate (worker token), heartbeat, atomically claim one queued job → job + signed download/upload URLs |
-| `POST /api/worker/complete` | Home Worker: report job result (`ok`, `error`, product fields); validates against the same schema as browser jobs |
-| `POST /api/ai/task` | one-shot AI generation (router + Gemini) |
-| `POST /api/ai/chat` | streaming AI conversation (SSE) |
-| `GET/POST /api/ai/keys` + `[keyId]` + `[keyId]/test` | BYO-key list/add/remove/test (encrypted at rest) |
-| `GET /api/admin/export` | full content-table export ZIP (backup token; no key material, no join-code hashes) |
-| `GET/POST /api/admin/settings` | settings read/write for admins |
-| `GET /api/admin/ai/usage` | AI usage reporting |
-| `GET/POST /api/admin/ai/limits` | edit `ai_limits` |
+| Route                                                | Purpose                                                                                                                  |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/health`                                    | Health check + keep-alive ping (one trivial DB query)                                                                    |
+| `POST /api/worker/claim`                             | Home Worker: authenticate (worker token), heartbeat, atomically claim one queued job → job + signed download/upload URLs |
+| `POST /api/worker/complete`                          | Home Worker: report job result (`ok`, `error`, product fields); validates against the same schema as browser jobs        |
+| `POST /api/ai/task`                                  | one-shot AI generation (router + Gemini)                                                                                 |
+| `POST /api/ai/chat`                                  | streaming AI conversation (SSE)                                                                                          |
+| `GET/POST /api/ai/keys` + `[keyId]` + `[keyId]/test` | BYO-key list/add/remove/test (encrypted at rest)                                                                         |
+| `GET /api/admin/export`                              | full content-table export ZIP (backup token; no key material, no join-code hashes)                                       |
+| `GET/POST /api/admin/settings`                       | settings read/write for admins                                                                                           |
+| `GET /api/admin/ai/usage`                            | AI usage reporting                                                                                                       |
+| `GET/POST /api/admin/ai/limits`                      | edit `ai_limits`                                                                                                         |
 
 ## 15. The Home Worker (Python)
 
@@ -526,13 +528,13 @@ Its loop: `POST /api/worker/claim` → sleep on a heartbeat if the queue is empt
 → on a job, `run_job(job, download_url, upload_path, upload_url)` performs the
 type-specific pipeline:
 
-| Capability | Command chain |
-|---|---|
-| `ocr_pdf_scan` | rasterise pages → tesseract CLI with the leader-chosen `languages` (eng/ara) |
-| `office_to_pdf` | LibreOffice headless conversion |
-| `video_to_audio` | ffmpeg → MP3 |
-| `compress_video` | ffmpeg ladder (resolution/CRF) |
-| `transcribe` | Whisper transcription → timestamped text (`fmt_ts`) |
+| Capability       | Command chain                                                                |
+| ---------------- | ---------------------------------------------------------------------------- |
+| `ocr_pdf_scan`   | rasterise pages → tesseract CLI with the leader-chosen `languages` (eng/ara) |
+| `office_to_pdf`  | LibreOffice headless conversion                                              |
+| `video_to_audio` | ffmpeg → MP3                                                                 |
+| `compress_video` | ffmpeg ladder (resolution/CRF)                                               |
+| `transcribe`     | Whisper transcription → timestamped text (`fmt_ts`)                          |
 
 Results upload straight to Storage at the given path, then
 `POST /api/worker/complete` reports success or typed error. The loop itself
@@ -590,6 +592,7 @@ shuts down cleanly on Ctrl-C.
 `https://mgabdxvrlnctbgvipvvf.supabase.co` — all **17 migrations applied**.
 
 **Seed users** (UUID prefixes in the seed files):
+
 - `aaaaaaaa-…` — primary admin ("Study Hub admin").
 - `bbbbbbbb-…` — admin2, "Backup admin" (`admin2@studyhub.local`): in the hosted
   copy the password was changed to `Blue-Otter-42x` (the seed default
@@ -607,6 +610,7 @@ shuts down cleanly on Ctrl-C.
 hash), which works live on the hosted project.
 
 **Known hosted-state notes**:
+
 - the `private.rate_limits` row may exist for this machine's IP (`login:`
   purpose) from testing, clearable by SQL if a login round should be retried;
 - GoTrue won't accept re-setting the same password (shows the generic error
@@ -660,17 +664,17 @@ study-hub/
 
 ## 20. The documentation set
 
-| Document | What it covers |
-|---|---|
-| `docs/PROJECT-GUIDE.md` | *this document* — the whole system in one place |
-| `docs/QUESTIONS.md` | the decision log; #29–30 are the bug-fix decisions |
-| `docs/WORKER.md` | installing and running the Home Worker, plain language |
-| `docs/JOBS.md` | what each job does, size limits, what runs where |
-| `docs/STUDENTS-AND-JOIN-CODES.md` | the student flow explained for leaders |
-| `docs/leader-guide.md` | day-to-day leader manual |
-| `docs/key-guide.md` | creating the leader's own Gemini key, correctly |
-| `docs/FREE_TIER.md` | every service with the date + source proving it's free for this use |
-| `docs/restore.md` | recovering from a backup ZIP |
+| Document                          | What it covers                                                      |
+| --------------------------------- | ------------------------------------------------------------------- |
+| `docs/PROJECT-GUIDE.md`           | _this document_ — the whole system in one place                     |
+| `docs/QUESTIONS.md`               | the decision log; #29–30 are the bug-fix decisions                  |
+| `docs/WORKER.md`                  | installing and running the Home Worker, plain language              |
+| `docs/JOBS.md`                    | what each job does, size limits, what runs where                    |
+| `docs/STUDENTS-AND-JOIN-CODES.md` | the student flow explained for leaders                              |
+| `docs/leader-guide.md`            | day-to-day leader manual                                            |
+| `docs/key-guide.md`               | creating the leader's own Gemini key, correctly                     |
+| `docs/FREE_TIER.md`               | every service with the date + source proving it's free for this use |
+| `docs/restore.md`                 | recovering from a backup ZIP                                        |
 
 ---
 

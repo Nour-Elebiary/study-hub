@@ -2,10 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CanvasListTools from "@/app/(leader)/courses/[courseId]/canvas/canvas-list";
-import {
-  listCanvases,
-  listDeletedCanvases,
-} from "@/lib/dal-canvas";
+import { listCanvases, listDeletedCanvases } from "@/lib/dal-canvas";
 import { getMembership } from "@/lib/course-access";
 import { requireSession } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";

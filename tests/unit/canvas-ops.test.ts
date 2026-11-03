@@ -45,8 +45,18 @@ const START: CanvasState = {
   cards: {
     [CARD_A]: card(CARD_A, { color: "4" }),
     [CARD_B]: card(CARD_B, { color: null }),
-    [CARD_C]: card(CARD_C, { kind: "link", url: "https://example.com", body: null }),
-    [CARD_D]: card(CARD_D, { kind: "note", nodeId: NOTE_1, body: null, x: 40, y: 60 }),
+    [CARD_C]: card(CARD_C, {
+      kind: "link",
+      url: "https://example.com",
+      body: null,
+    }),
+    [CARD_D]: card(CARD_D, {
+      kind: "note",
+      nodeId: NOTE_1,
+      body: null,
+      x: 40,
+      y: 60,
+    }),
   },
   edges: {
     [EDGE_AB]: edge(EDGE_AB, CARD_A, CARD_B),
@@ -84,7 +94,11 @@ describe("applyOps", () => {
         height: 140,
       }),
       parse({ op: "node.update", id: CARD_A, x: 100, y: 120, color: "2" }),
-      parse({ op: "node.update", id: "99999999-0000-8000-0000-000000000009", x: 5 }),
+      parse({
+        op: "node.update",
+        id: "99999999-0000-8000-0000-000000000009",
+        x: 5,
+      }),
       parse({ op: "node.delete", id: CARD_B }),
       parse({ op: "node.delete", id: "99999999-0000-8000-0000-000000000009" }),
       parse({
@@ -102,7 +116,10 @@ describe("applyOps", () => {
     expect(next.edges[EDGE_BC]).toBeUndefined(); // it hung off CARD_B too
     expect(next.edges["aaaaaaaa-0000-2000-0000-000000000009"]).toBeUndefined(); // skipped add
     // CARD_C existed before the duplicate add attempt, so the add was skipped.
-    expect(next.cards[CARD_C]).toMatchObject({ kind: "link", url: "https://example.com" });
+    expect(next.cards[CARD_C]).toMatchObject({
+      kind: "link",
+      url: "https://example.com",
+    });
   });
 
   it("treats an explicit null as a set (colour/label clear), a missing key as keep", () => {
@@ -186,7 +203,13 @@ describe("invertOps", () => {
 
   it("restores an edge.update with the previous side and arrows", () => {
     const ops = [
-      parse({ op: "edge.update", id: EDGE_AB, from_side: "top", to_end: "none", label: null }),
+      parse({
+        op: "edge.update",
+        id: EDGE_AB,
+        from_side: "top",
+        to_end: "none",
+        label: null,
+      }),
     ];
     const restored = applyOps(applyOps(START, ops), invertOps(START, ops));
     expect(restored.edges[EDGE_AB]).toEqual(START.edges[EDGE_AB]);
@@ -194,9 +217,17 @@ describe("invertOps", () => {
 
   it("skipped ops contribute nothing to the inverse (unknown id, wrong shape)", () => {
     const ops = [
-      parse({ op: "node.update", id: "99999999-0000-8000-0000-000000000009", x: 3 }),
+      parse({
+        op: "node.update",
+        id: "99999999-0000-8000-0000-000000000009",
+        x: 3,
+      }),
       parse({ op: "node.delete", id: "99999999-0000-8000-0000-000000000009" }),
-      parse({ op: "edge.update", id: "99999999-0000-2000-0000-000000000009", label: "x" }),
+      parse({
+        op: "edge.update",
+        id: "99999999-0000-2000-0000-000000000009",
+        label: "x",
+      }),
       parse({ op: "node.update", id: CARD_A, x: 500 }),
     ];
     expect(invertOps(START, ops)).toEqual([
@@ -253,7 +284,8 @@ describe("property: apply → invert → apply returns the original state", () =
           };
           if (rng() < 0.5) patch.color = rng() < 0.5 ? null : "3";
           if (rng() < 0.5) patch.label = rng() < 0.5 ? null : `label ${step}`;
-          if (typeof target.body === "string" && rng() < 0.5) patch.body = `rewritten ${step}`;
+          if (typeof target.body === "string" && rng() < 0.5)
+            patch.body = `rewritten ${step}`;
           ops.push(parse(patch));
         }
       }

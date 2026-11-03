@@ -67,12 +67,18 @@ export function gridColumns(count: number): number {
 }
 
 /** Position of grid cell `index` inside a group's top-left corner. */
-export function gridCellPosition(index: number, columns: number): { x: number; y: number } {
+export function gridCellPosition(
+  index: number,
+  columns: number,
+): { x: number; y: number } {
   const column = index % columns;
   const row = Math.floor(index / columns);
   return {
     x: SECTION_PADDING + column * (NOTE_CARD_SIZE.width + SECTION_GAP),
-    y: SECTION_HEADER + SECTION_PADDING + row * (NOTE_CARD_SIZE.height + SECTION_GAP),
+    y:
+      SECTION_HEADER +
+      SECTION_PADDING +
+      row * (NOTE_CARD_SIZE.height + SECTION_GAP),
   };
 }
 
@@ -242,7 +248,13 @@ function singleCourseCanvas(
     section.notes.forEach((note, index) => {
       const cell = gridCellPosition(index, columns);
       cards.push(
-        noteCardOp(nextId(), note.id, gx + cell.x, gy + cell.y, areaColorOf(section.area)),
+        noteCardOp(
+          nextId(),
+          note.id,
+          gx + cell.x,
+          gy + cell.y,
+          areaColorOf(section.area),
+        ),
       );
     });
 
@@ -325,7 +337,15 @@ function chunkedCanvases(
   for (const entry of sectionsWithNotes) {
     const at = placements[entry.key]!;
     const noteId = nextId();
-    cards.push(noteCardOp(noteId, entry.note.id, at.x - dx, at.y - dy, areaColorOf(entry.area)));
+    cards.push(
+      noteCardOp(
+        noteId,
+        entry.note.id,
+        at.x - dx,
+        at.y - dy,
+        areaColorOf(entry.area),
+      ),
+    );
     edges.push(coreToGroupEdge(nextId(), coreId, noteId));
   }
   core.x = placements[coreId]!.x - dx;

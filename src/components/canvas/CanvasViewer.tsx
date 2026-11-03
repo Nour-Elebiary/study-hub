@@ -153,8 +153,7 @@ export default function CanvasViewer(props: {
       flowNodes
         .filter((node) => node.data.card.kind !== "group")
         .sort(
-          (a, b) =>
-            a.position.y - b.position.y || a.position.x - b.position.x,
+          (a, b) => a.position.y - b.position.y || a.position.x - b.position.x,
         )
         .map((node) => ({
           card: node.data.card,
@@ -269,8 +268,7 @@ function CardRow(props: {
 }) {
   const { row, labels } = props;
   const { card, note, file } = row;
-  const title =
-    card.label || (card.kind === "file" ? file?.name : null) || "";
+  const title = card.label || (card.kind === "file" ? file?.name : null) || "";
   if (card.kind === "note" && card.nodeId && note) {
     return (
       <li>

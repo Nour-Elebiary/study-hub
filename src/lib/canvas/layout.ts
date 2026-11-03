@@ -45,7 +45,8 @@ export function dagreLayout(
     graph.setNode(box.id, { width: box.width, height: box.height });
   }
   for (const pair of pairs) {
-    if (byId.has(pair.from) && byId.has(pair.to)) graph.setEdge(pair.from, pair.to);
+    if (byId.has(pair.from) && byId.has(pair.to))
+      graph.setEdge(pair.from, pair.to);
   }
 
   layout(graph);
