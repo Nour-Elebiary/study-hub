@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Background,
@@ -21,10 +15,7 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import {
-  canvasNodeTypes,
-  type CanvasNodeData,
-} from "./CanvasNode";
+import { canvasNodeTypes, type CanvasNodeData } from "./CanvasNode";
 import {
   canvasEdgeTypes,
   edgeMarkers,
@@ -38,14 +29,15 @@ import { CanvasProvider, type CanvasContextValue } from "./editor-context";
 import { applyOps, invertOps, defaultSizeOf } from "@/lib/canvas/ops";
 import { nearestSide } from "@/lib/canvas/geometry";
 import { snap } from "@/lib/canvas/geometry";
-import { CARD_KINDS, SIDES, type CanvasOp, type Side } from "@/lib/canvas/schemas";
+import {
+  CARD_KINDS,
+  SIDES,
+  type CanvasOp,
+  type Side,
+} from "@/lib/canvas/schemas";
 import { GRID_SIZE, ZOOM_RANGE } from "@/lib/canvas/defaults";
 import type { CanvasCard, CanvasState } from "@/lib/canvas/types";
-import type {
-  CanvasPayload,
-  PickerFile,
-  PickerNote,
-} from "./payload";
+import type { CanvasPayload, PickerFile, PickerNote } from "./payload";
 import {
   applyCanvasOpsAction,
   listPickerFilesAction,
@@ -106,10 +98,12 @@ const toRfEdges = (payload: CanvasPayload): RfEdge[] =>
 function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   const router = useRouter();
 
-  const [nodes, setNodes, onNodesChange] =
-    useNodesState<RfNode>(toRfNodes(payload));
-  const [edges, setEdges, onEdgesChange] =
-    useEdgesState<RfEdge>(toRfEdges(payload));
+  const [nodes, setNodes, onNodesChange] = useNodesState<RfNode>(
+    toRfNodes(payload),
+  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState<RfEdge>(
+    toRfEdges(payload),
+  );
 
   const stateRef = useRef<CanvasState>({
     cards: Object.fromEntries(payload.cards.map((c) => [c.id, c])),
@@ -118,6 +112,9 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   });
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+  // The last plain-language save problem ("This map is full…"), shown under
+  // the toolbar until the next successful save (spec 5.9 test d).
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
@@ -163,7 +160,9 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
             if (!card) break;
             const fresh = nodeFromCard(card);
             setNodes((current) =>
-              current.some((node) => node.id === op.id) ? current : [...current, fresh],
+              current.some((node) => node.id === op.id)
+                ? current
+                : [...current, fresh],
             );
             break;
           }
@@ -185,7 +184,10 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
                   ...node,
                   position:
                     op.x !== undefined || op.y !== undefined
-                      ? { x: op.x ?? node.position.x, y: op.y ?? node.position.y }
+                      ? {
+                          x: op.x ?? node.position.x,
+                          y: op.y ?? node.position.y,
+                        }
                       : node.position,
                   width: op.width ?? node.width,
                   height: op.height ?? node.height,
@@ -265,37 +267,44 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   // The retry path re-schedules itself through the named function
   // expression inside useCallback, so the callback can always reference
   // itself.
-  const flush = useCallback(async function flush() {
-    if (timerRef.current !== null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    const batch = pendingRef.current;
-    if (batch.length === 0) {
-      setSaveStatus("saved");
-      return;
-    }
-    pendingRef.current = [];
-    setSaveStatus("saving");
-    const result = await applyCanvasOpsAction(payload.id, batch);
-    if ("rev" in result) {
-      stateRef.current = { ...stateRef.current, rev: result.rev };
-      retriedRef.current = false;
-      setSaveStatus("saved");
-      return;
-    }
-    console.error("canvas save failed:", result.error);
-    // Put the batch back and retry once quietly; a second failure shows the
-    // retry chip (Could not save — Try again).
-    pendingRef.current = [...batch, ...pendingRef.current];
-    if (result.refetch || retriedRef.current) {
+  const flush = useCallback(
+    async function flush() {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      const batch = pendingRef.current;
+      if (batch.length === 0) {
+        setSaveStatus("saved");
+        return;
+      }
+      pendingRef.current = [];
+      setSaveStatus("saving");
+      const result = await applyCanvasOpsAction(payload.id, batch);
+      if ("rev" in result) {
+        stateRef.current = { ...stateRef.current, rev: result.rev };
+        retriedRef.current = false;
+        setSaveStatus("saved");
+        setSaveNotice(null);
+        return;
+      }
+      console.error("canvas save failed:", result.error);
+      // The server already mapped this to plain language (errors.ts): "This
+      // map is full…", "That content belongs to another course…", etc.
+      setSaveNotice(result.error);
+      // Put the batch back and retry once quietly; a second failure shows the
+      // retry chip (Could not save — Try again).
+      pendingRef.current = [...batch, ...pendingRef.current];
+      if (result.refetch || retriedRef.current) {
+        retriedRef.current = true;
+        setSaveStatus("error");
+        return;
+      }
       retriedRef.current = true;
-      setSaveStatus("error");
-      return;
-    }
-    retriedRef.current = true;
-    window.setTimeout(() => void flush(), 2500);
-  }, [payload.id]);
+      window.setTimeout(() => void flush(), 2500);
+    },
+    [payload.id],
+  );
 
   const queueOps = useCallback(
     (ops: readonly CanvasOp[]) => {
@@ -355,7 +364,9 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   const selectedCardIds = useMemo(
     () =>
       nodes
-        .filter((node) => node.selected && CARD_KINDS.includes(node.data.card.kind))
+        .filter(
+          (node) => node.selected && CARD_KINDS.includes(node.data.card.kind),
+        )
         .map((node) => node.id),
     [nodes],
   );
@@ -581,6 +592,15 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         savingPublish={savingPublish}
       />
 
+      {saveNotice ? (
+        <p
+          role="alert"
+          className="bg-destructive/10 text-destructive border-destructive/40 mx-2 rounded border px-2.5 py-1.5 text-xs font-semibold"
+        >
+          {saveNotice}
+        </p>
+      ) : null}
+
       <div className="h-[calc(100dvh-9rem)] w-full">
         <ReactFlow
           onInit={(flow) => {
@@ -715,7 +735,7 @@ function PickerDialog(props: PickerDialogProps) {
                   <button
                     type="button"
                     onClick={() => props.onChoose("note", note)}
-                    className="w-full rounded border px-2 py-1.5 text-left text-xs hover:bg-muted"
+                    className="hover:bg-muted w-full rounded border px-2 py-1.5 text-left text-xs"
                   >
                     <span className="block truncate font-semibold" dir="auto">
                       {note.title}
@@ -735,7 +755,7 @@ function PickerDialog(props: PickerDialogProps) {
                   <button
                     type="button"
                     onClick={() => props.onChoose("file", file)}
-                    className="w-full rounded border px-2 py-1.5 text-left text-xs hover:bg-muted"
+                    className="hover:bg-muted w-full rounded border px-2 py-1.5 text-left text-xs"
                   >
                     <span className="block truncate font-semibold" dir="auto">
                       {file.title}

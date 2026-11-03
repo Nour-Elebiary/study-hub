@@ -28,22 +28,31 @@ export default defineConfig({
       testMatch: /student-setup\.spec\.ts/,
     },
     {
+      name: "leader-setup",
+      testMatch: /leader-setup\.spec\.ts/,
+      // Independent of the student setup project: the leader signs in with
+      // the seeded admin account (and clears the first-sign-in password
+      // change) and saves its own storage state.
+      dependencies: [],
+    },
+    {
       name: "mobile",
       use: {
         ...devices["Pixel 7"],
         viewport: { width: 360, height: 800 },
       },
-      dependencies: ["setup"],
+      dependencies: ["setup", "leader-setup"],
       // The setup file runs once in its own project; the join spec is
       // mobile-only because the join rate limit (5/min per IP) is shared
       // by every context in a run — desktop duplicates would break it.
-      testIgnore: /student-setup\.spec\.ts/,
+      testIgnore: /student-setup\.spec\.ts|leader-setup\.spec\.ts/,
     },
     {
       name: "desktop",
       use: { ...devices["Desktop Chrome"] },
-      dependencies: ["setup"],
-      testIgnore: /student-setup\.spec\.ts|student-join\.spec\.ts/,
+      dependencies: ["setup", "leader-setup"],
+      testIgnore:
+        /student-setup\.spec\.ts|leader-setup\.spec\.ts|student-join\.spec\.ts/,
     },
   ],
   webServer: {
