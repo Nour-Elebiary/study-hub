@@ -184,30 +184,32 @@ ffmpeg/tesseract binaries installed by `worker/install.ps1`.
 
 ## 6. The data model
 
-**22 public tables + 1 private schema table**, created and evolved across **17
-migrations** (`supabase/migrations/00001` … `00017`). Every table has RLS
+**26 public tables + 1 private schema table**, created and evolved across **19
+migrations** (`supabase/migrations/00001` … `00019`). Every table has RLS
 **enabled and forced**; users own nothing the database itself doesn't confirm
-(46+ policies).
+(59+ policies).
 
-| Migration                            | Milestone   | Creates / changes                                                                     |
-| ------------------------------------ | ----------- | ------------------------------------------------------------------------------------- |
-| `00001_foundation_schema`            | M0          | `profiles`, `courses`, `course_members`, `settings`, `audit_log`                      |
-| `00002_m1_admin`                     | M1          | admin check function, admin-guard, audit triggers, settings reader RPC                |
-| `00003_m1_roles`                     | (same area) | role enums/refinements                                                                |
-| `00004_m1_admin`                     | M1          | invites + admin flows                                                                 |
-| `00005_m2_content`                   | M2          | `nodes`, `node_versions` (immutable), `tags`, `node_tags`, `comments`, `locks`        |
-| `00006_m3_assets`                    | M3          | `assets` + the private storage bucket + `can_access_storage_path`                     |
-| `00007_m4_student`                   | M4          | `join_codes` (hashed), `suggestions`, `private.rate_limits`                           |
-| `00008_m5_jobs`                      | M5          | `jobs`                                                                                |
-| `00009_m6_worker`                    | M6          | `worker_heartbeats`, worker bookings, double-claim protection                         |
-| `00010_m7_ai`                        | M7          | `ai_keys`, `ai_limits`, `ai_usage`, `ai_conversations`, `ai_messages`, `ai_handoffs`  |
-| `00011_m7_ai_limits_defaults`        | M7          | default model-limit rows                                                              |
-| `00012_m8_health`                    | M8          | health-check function, audit-log/db usage RPCs                                        |
-| `00013_node_versions_immutable`      | hardening   | no UPDATE/DELETE on versions except owner-editor                                      |
-| `00014_rate_limit_execute`           | hardening   | `EXECUTE` revoked from client roles                                                   |
-| `00015_jobs_created_by_default`      | hardening   | RLS insert fix for `jobs`                                                             |
-| `00016_touch_updated_at_search_path` | hardening   | `search_path=''` on `set_updated_at`                                                  |
-| `00017_drop_password_trigger`        | bug fix #1  | removed the GoTrue `on_user_password_changed` trigger that disarmed the password gate |
+| Migration                            | Milestone   | Creates / changes                                                                                |
+| ------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------ |
+| `00001_foundation_schema`            | M0          | `profiles`, `courses`, `course_members`, `settings`, `audit_log`                                 |
+| `00002_m1_admin`                     | M1          | admin check function, admin-guard, audit triggers, settings reader RPC                           |
+| `00003_m1_roles`                     | (same area) | role enums/refinements                                                                           |
+| `00004_m1_admin`                     | M1          | invites + admin flows                                                                            |
+| `00005_m2_content`                   | M2          | `nodes`, `node_versions` (immutable), `tags`, `node_tags`, `comments`, `locks`                   |
+| `00006_m3_assets`                    | M3          | `assets` + the private storage bucket + `can_access_storage_path`                                |
+| `00007_m4_student`                   | M4          | `join_codes` (hashed), `suggestions`, `private.rate_limits`                                      |
+| `00008_m5_jobs`                      | M5          | `jobs`                                                                                           |
+| `00009_m6_worker`                    | M6          | `worker_heartbeats`, worker bookings, double-claim protection                                    |
+| `00010_m7_ai`                        | M7          | `ai_keys`, `ai_limits`, `ai_usage`, `ai_conversations`, `ai_messages`, `ai_handoffs`             |
+| `00011_m7_ai_limits_defaults`        | M7          | default model-limit rows                                                                         |
+| `00012_m8_health`                    | M8          | health-check function, audit-log/db usage RPCs                                                   |
+| `00013_node_versions_immutable`      | hardening   | no UPDATE/DELETE on versions except owner-editor                                                 |
+| `00014_rate_limit_execute`           | hardening   | `EXECUTE` revoked from client roles                                                              |
+| `00015_jobs_created_by_default`      | hardening   | RLS insert fix for `jobs`                                                                        |
+| `00016_touch_updated_at_search_path` | hardening   | `search_path=''` on `set_updated_at`                                                             |
+| `00017_drop_password_trigger`        | bug fix #1  | removed the GoTrue `on_user_password_changed` trigger that disarmed the password gate            |
+| `00018_m9_canvas`                    | M9          | `canvases`, `canvas_nodes`, `canvas_edges`, `canvas_versions` + 13 RLS policies + guard triggers |
+| `00019_m9_canvas_ops`                | M9          | `canvas_apply_ops` (op batches, ≤200 ops) and `canvas_restore_version` (history restore)         |
 
 **The tables, by domain:**
 
@@ -233,6 +235,12 @@ migrations** (`supabase/migrations/00001` … `00017`). Every table has RLS
   cooldown), `ai_limits` (admin-editable per-model rpm/tpm/rpd + soft %), `ai_usage`
   (minute-bucket + day-bucket counters, Pacific-midnight days), `ai_conversations`
   / `ai_messages` / `ai_handoffs` (chat threads shared into a note).
+- **Canvas (M9)** — `canvases` (a map: course, title, kind, `published`,
+  `is_default`, soft-delete, viewport, picture legend), `canvas_nodes` (one
+  card on one map: kind (text/note/file/link/group), position/size/z/colour,
+  optional note/file reference, `student_visible`), `canvas_edges`
+  (card-to-card arrows with a label and arrow ends), `canvas_versions`
+  (**immutable** snapshots of a whole map, written per successful op batch).
 - **Private** — `private.rate_limits` (`key` = HMAC-SHA-256 of IP per purpose,
   event count, window start); written exclusively through the
   `consume_rate_limit` RPC with the service-role client.
@@ -298,6 +306,15 @@ _Layout skeleton (verified by measurement at 360 / 768 / 1024 / 1280 px):_
   **encrypted server-side** before storage), give it a project label you
   recognise, test it (`Test` button → `/api/ai/keys/[keyId]/test`), see
   cooldowns and usage. Rate limit: 5 adds / IP / hour.
+- **`/courses/[courseId]/canvas`** — the course's maps list (M9 canvas): "New
+  map", "Generate from course" (one click builds a first map of the notes),
+  per-map open/delete/restore, Make default, and the publish badge. Everyone
+  in the course may edit maps; publishing is what students read.
+- **`/courses/[courseId]/canvas/[canvasId]`** — the map editor: text / note /
+  file / group cards, drag + connect arrows, colours + picture legend,
+  publish switch ("Students can see"), a Saved chip, and automatic backups
+  written per save batch (`Backups` → restore an older version). Saves go
+  through ≤200-op op batches, not per-keystroke calls.
 
 ### Student app (`/s/*` — no login, cookie only)
 
@@ -310,6 +327,11 @@ _Layout skeleton (verified by measurement at 360 / 768 / 1024 / 1280 px):_
   plain text (never dead links).
 - **`/s/notes/[nodeId]`** — the note reading view; large text, no editing.
 - **`/s/map/[courseId]`** — the same mind map, read-only.
+- **`/s/canvas/[canvasId]`** — the map viewer (M9 canvas): the published
+  course map read-only. On phones the course outline comes first and the map
+  opens behind an "Open map" button; taps on note cards open the note, file
+  cards download, link cards open a new tab. Draft or not-yet-published maps
+  show the usual not-found screen.
 - **`/s/search`** — student-scoped search (they only ever see what they can access).
 - **`/s/tags`**, **`/s/tags/[tag]`** — student tag browsing.
 
@@ -463,13 +485,15 @@ extra service, and the function's `EXECUTE` is revoked from client roles
 (migration `00014`). Keys are **HMAC-SHA-256 hashes of the caller's IP +
 purpose prefix** — the app never stores a raw IP (privacy rule).
 
-| Purpose                         | Limit | Window                                                               |
-| ------------------------------- | ----- | -------------------------------------------------------------------- |
-| `join` (join-code check)        | 5     | per minute                                                           |
-| `suggest` (student suggestions) | 3     | per hour                                                             |
-| `login`                         | 5     | per 15 minutes                                                       |
-| `ai_key` (adding keys)          | 5     | per hour                                                             |
-| `ai_chat`                       | 20    | per minute (the _daily allowance_ in `settings` is the real control) |
+| Purpose                         | Limit | Window                                                                       |
+| ------------------------------- | ----- | ---------------------------------------------------------------------------- |
+| `join` (join-code check)        | 5     | per minute                                                                   |
+| `suggest` (student suggestions) | 3     | per hour                                                                     |
+| `login`                         | 5     | per 15 minutes                                                               |
+| `ai_key` (adding keys)          | 5     | per hour                                                                     |
+| `ai_chat`                       | 20    | per minute (the _daily allowance_ in `settings` is the real control)         |
+| `canvas_ops`                    | 240   | per minute (one call per debounced save batch — normal editing is far below) |
+| `canvas_create`                 | 20    | per hour per IP (New map, Generate from course, restore version)             |
 
 A broken limiter **fails closed** (`checkRateLimit` returns false on error) —
 an outage can't become an open door. Join codes themselves are stored
@@ -491,6 +515,8 @@ default, min and max; `/admin/settings` edits them; all readers go through
 | `ai_daily_allowance_per_leader` | 0 (AI off)  | Daily AI messages per leader                                      |
 | `db_limit_mb`                   | 500         | Free-tier DB ceiling the health screen measures against           |
 | `storage_limit_mb`              | 1024        | Free-tier storage ceiling ditto                                   |
+| `max_canvas_cards`              | 300         | Most cards a single map may hold (never below 20)                 |
+| `max_canvases_per_course`       | 20          | Most maps a course may hold                                       |
 
 ## 14. Server-side surface: server actions and API routes
 
@@ -575,9 +601,12 @@ shuts down cleanly on Ctrl-C.
 - **RLS test suite**: literally every table-policy from migrations is exercised
   by `scripts/test-rls.mjs` against local Supabase — the constitution forbids
   disabling RLS or a test to make something work.
-- **Playwright e2e**: 31-page walkthrough coverage, mobile 360 px viewports,
-  keyboard and axe accessibility checks, offline PWA test (against a
-  production build), join-code and password-gate journeys.
+- **Playwright e2e**: 31-page walkthrough coverage + the M9 canvas acceptance
+  specs (`tests/e2e/canvas.spec.ts`, acceptance a–d, run twice — mobile 360 px
+  and desktop), mobile 360 px viewports, keyboard and axe accessibility
+  checks, offline PWA test (against a production build), join-code and
+  password-gate journeys; the leader's stable session comes from the
+  `leader-setup` project (there is a matching `student-setup`).
 - **Pre-deploy scripts**: `scripts/load-test.mjs` (traffic soak),
   `scripts/check-lighthouse.mjs` (performance), `scripts/generate-icons.mjs`
   (PWA icons), `scripts/copy-pdf-worker.mjs` (ensures pdf.js worker asset
@@ -589,7 +618,8 @@ shuts down cleanly on Ctrl-C.
 ## 18. Seed data and the hosted project's current state
 
 **Hosted Supabase project**: `mgabdxvrlnctbgvipvvf` (eu-north-1), URL
-`https://mgabdxvrlnctbgvipvvf.supabase.co` — all **17 migrations applied**.
+`https://mgabdxvrlnctbgvipvvf.supabase.co` — all **19 migrations applied**
+(M9 included; the local/CI stack seeds the same schema before every run).
 
 **Seed users** (UUID prefixes in the seed files):
 
@@ -634,12 +664,17 @@ study-hub/
 │   │   └── api/                #   health, worker/{claim,complete}, ai/{task,chat,keys…},
 │   │                           #     admin/{export,settings,ai/{usage,limits}}
 │   ├── components/             # TipTap editor, AI side panel, test-key button,
-│   │                           #   install prompt, nav/layout, forms
-│   ├── lib/                    # 47 shared modules; server-only ones marked `server-only`:
+│   │                           #   install prompt, nav/layout, forms;
+│   │                           #   canvas/ (M9): CanvasEditor/Viewer, cards,
+│   │                           #   CanvasNode/Edge, Toolbar, Legend, Versions
+│   ├── lib/                    # 55 shared modules; server-only ones marked `server-only`:
 │   │   ├── dal.ts              #   the data-access layer (single choke point for reads/writes)
+│   │   ├── dal-canvas.ts       #   canvas DAL incl. the student-card visibility filter
+│   │   ├── canvas/             #   pure modules: schemas, ops, geometry, layout,
+│   │   │                       #     generate (dagre), errors (plain-language mapping)
 │   │   ├── schemas.ts          #   every zod schema
-│   │   ├── rate-limit.ts       #   the 5 purposes + hashed-key limiter
-│   │   ├── jobs.ts             #   job types/statuses/runner derivation/retry (pure, shared)
+│   │   ├── rate-limit.ts       #   the purpose + hashed-key limiter
+│   │   ├── jobs.ts             # job types/statuses/runner derivation/retry (pure, shared)
 │   │   ├── student-cookie.ts / student-access.ts
 │   │   ├── admin-auth.ts / admin-actions-guard.ts / audit.ts
 │   │   ├── ai/{router,gemini,chat,usage,admin,handoff}.ts + ai-crypto.ts + ai-keys.ts
@@ -651,7 +686,7 @@ study-hub/
 │   ├── proxy.ts                # Next-16 middleware entry: session refresh via getUser()
 │   └── messages/en.json        # student-facing strings (next-intl)
 ├── supabase/
-│   ├── migrations/00001…00017  # full schema/RLS history
+│   ├── migrations/00001…00019  # full schema/RLS history
 │   └── (seed + config)
 ├── worker/                     # Python Home Worker: worker.py, install.ps1, requirements.txt
 ├── scripts/                    # test-rls, restore, load-test, check-lighthouse,
@@ -681,7 +716,7 @@ study-hub/
 ### One paragraph to remember it all
 
 Study Hub is a **Next.js 16 + React 19 + Tailwind 4 app on Vercel** whose brain
-is a **hosted Supabase Postgres** with forced RLS on all 22 public tables,
+is a **hosted Supabase Postgres** with forced RLS on all 26 public tables,
 whose files live in one private Storage bucket, whose team authenticates
 through GoTrue behind a Next proxy that always re-verifies the JWT, whose
 students are cookie-only joiners on `/s/*`, whose content is **immutable
