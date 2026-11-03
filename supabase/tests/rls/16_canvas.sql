@@ -281,9 +281,9 @@ begin
       "to_node":"f0f0f0f0-0c19-0000-1000-000000000001"}
     ]$ops$::jsonb)
   into r;
-  if r->>'applied' <> '4' then
-    raise exception 'ASSERT FAILED: apply_ops applied % ops, expected 4 (%s)',
-      r->>'applied', r::text;
+  if r->>'applied' <> '3' or r->>'skipped' <> '1' or r->>'rev' <> '1'
+  then
+    raise exception 'ASSERT FAILED: apply_ops returned % (expected applied 3, skipped 1 — the unknown-card op — and rev 1)', r::text;
   end if;
 end $$;
 
