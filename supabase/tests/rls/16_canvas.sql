@@ -106,31 +106,30 @@ set local request.jwt.claims =
 -- one edge, a draft COURSE-A note, a draft COURSE-B note (for the
 -- cross-course guard), and the canvas's first version.
 -- ---------------------------------------------------------------------------
-insert into public.nodes (id, course_id, area, kind, title, slug, status, created_by)
-values
-  ('f0f0f0f0-0c19-0000-9000-000000000001', 'cccccccc-0000-cccc-0000-000000000001',
-   'quiz_exam_prep', 'note', 'Canvas guardian note', 'canvas-guardian-note', 'draft',
-   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
-  ('f0f0f0f0-0c19-0000-9000-000000000002', 'cccccccc-0000-cccc-0000-000000000002',
-   'quiz_exam_prep', 'note', 'Course B guardian', 'course-b-guardian', 'draft',
-   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+  -- status defaults to 'draft' and created_by to the calling leader (00005);
+  -- the INSERT grant does not cover either column — see 07_nodes_isolation.
 
 insert into public.assets (
   id, course_id, node_id, kind, storage, path_or_url, title, mime, size_bytes,
-  student_visible, created_by
+  student_visible
 ) values (
   'f0f0f0f0-0c19-0000-a000-000000000001', 'cccccccc-0000-cccc-0000-000000000001',
   'eeeeeeee-0000-eeee-0000-000000000003', 'document', 'drive',
   'https://drive.google.com/file/d/1EXAMPLE-hidden/view',
   'Hidden from students', 'application/pdf', 1024,
-  false, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+  false
+); -- created_by defaults to auth.uid () (00006)
 
-insert into public.canvases (id, course_id, title, published)
+insert into public.canvases (id, course_id, title)
 values
   ('f0f0f0f0-0c19-0000-8000-000000000001', 'cccccccc-0000-cccc-0000-000000000001',
-   'Canvas A (published)', true),
+   'Canvas A (published)'),
   ('f0f0f0f0-0c19-0000-8000-000000000002', 'cccccccc-0000-cccc-0000-000000000001',
-   'Canvas A2 (draft)', false);
+   'Canvas A2 (draft)');
+
+-- published is update-only (00018): create as drafts, publish one.
+update public.canvases set published = true
+where id = 'f0f0f0f0-0c19-0000-8000-000000000001';
 
 -- Every card kind satisfies canvas_nodes_ref_by_kind at insert time: the
 -- note card carries node_id, the text card carries body, the file card
