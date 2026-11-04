@@ -641,9 +641,41 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         onChoose={(kind, entry) => {
           if (kind === "note") {
             const note = entry as PickerNote;
+            // The optimistic card resolves its target through notesRef,
+            // which only knows the notes from the page's first load — the
+            // picked note is not there yet. Hand the picker's own data to
+            // the card now; the next full page load resolves the server
+            // truth (preview body, deleted state) through resolveTargets.
+            notesRef.current = {
+              ...notesRef.current,
+              [note.id]: {
+                id: note.id,
+                title: note.title,
+                area: note.area,
+                published: note.published,
+                deleted: false,
+                preview: null,
+              },
+            };
             addCard("note", { node_id: note.id, label: note.title });
           } else {
             const file = entry as PickerFile;
+            // Same optimistic hand-off. The storage path and mime type
+            // stay empty until the reload; without a mime the card keeps
+            // its icon and the thumbnail lookup is never attempted.
+            filesRef.current = {
+              ...filesRef.current,
+              [file.id]: {
+                id: file.id,
+                name: file.title,
+                kind: file.kind,
+                mime: "",
+                bytes: file.bytes,
+                visible: file.visible,
+                downloadable: file.downloadable,
+                pathOrUrl: "",
+              },
+            };
             addCard("file", { asset_id: file.id, label: file.title });
           }
           closePicker();
