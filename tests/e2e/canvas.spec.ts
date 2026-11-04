@@ -107,6 +107,20 @@ async function connectCards(page: Page, fromText: string, toText: string) {
   });
 }
 
+/** Moves a card by (dx, dy): press its centre, drag, release. */
+async function dragCard(page: Page, text: string, dx: number, dy: number) {
+  const box = await card(page, text).boundingBox();
+  expect(box, `card "${text}" should have a bounding box`).toBeTruthy();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    box!.x + box!.width / 2 + dx,
+    box!.y + box!.height / 2 + dy,
+    { steps: 6 },
+  );
+  await page.mouse.up();
+}
+
 /** Waits out the 800 ms save debounce, then confirms the batch was saved. */
 async function expectSaved(page: Page) {
   await page.waitForTimeout(900);
@@ -184,19 +198,15 @@ test.describe.serial("canvas (M9 acceptance a–d)", () => {
     // Add a text card, then move it with a mouse drag.
     await page.getByRole("button", { name: "Add text card" }).click();
     await expect(card(page, "Write here…")).toBeVisible({ timeout: 10_000 });
-    const box = await card(page, "Write here…").boundingBox();
-    expect(box).toBeTruthy();
-    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(
-      box!.x + box!.width / 2 + 80,
-      box!.y + box!.height / 2 + 40,
-      { steps: 6 },
-    );
-    await page.mouse.up();
+    await dragCard(page, "Write here…", 80, 40);
 
     // Add both seeded course notes through the picker: one published quiz
     // note, one draft lecture note (students must see only the first).
+    // Cards spawn around the viewport centre, and at the 360 px width the
+    // 320 px note cards overlap each other and the text card, which would
+    // block the handle hover during the connect step. Pull each new note
+    // into its own clear corner first: the quiz note drags down, the draft
+    // note drags up.
     for (const noteTitle of ["Quiz 1 prep", "Lecture 1 (draft)"]) {
       await page.getByRole("button", { name: "Add note" }).click();
       await expect(
@@ -206,6 +216,8 @@ test.describe.serial("canvas (M9 acceptance a–d)", () => {
       // the plain title matches by substring (Playwright role names).
       await page.getByRole("button", { name: noteTitle }).click();
       await expect(card(page, noteTitle)).toBeVisible({ timeout: 10_000 });
+      const quiz = noteTitle === "Quiz 1 prep";
+      await dragCard(page, noteTitle, quiz ? -60 : -80, quiz ? 250 : -180);
     }
 
     // Connect the published note to the text card, and let the save settle.
