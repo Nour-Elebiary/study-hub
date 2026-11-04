@@ -263,8 +263,17 @@ test.describe.serial("canvas (M9 acceptance a–d)", () => {
     const publish = page.getByRole("checkbox", {
       name: /Students can see|Hidden from students/,
     });
-    await publish.check();
-    await expect(publish).toBeChecked({ timeout: 16_000 });
+    // `check()` verifies the state immediately after its own click, but the
+    // flip commits only once the publish server action's response lands
+    // (~40 ms later; the checkbox is also briefly disabled while the action
+    // runs), so click and then poll with a retrying assertion instead.
+    await publish.click();
+    await expect(publish).toBeChecked({ checked: true, timeout: 16_000 });
+    // The wrapping label's accessible name flips to the "Students can see"
+    // wording once the map is published — a second, independent sync signal.
+    await expect(publish).toHaveAccessibleName(/Students can see/, {
+      timeout: 16_000,
+    });
   });
 
   test("(b) the student sees only published cards and opens a note", async ({
