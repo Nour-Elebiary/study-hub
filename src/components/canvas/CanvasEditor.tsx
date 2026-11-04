@@ -531,14 +531,21 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
       const formData = new FormData();
       formData.set("canvas_id", payload.id);
       formData.set("published", String(next));
-      const result = await publishCanvasAction(null, formData);
-      setSavingPublish(false);
-      if (result && "error" in result && result.error) {
-        console.error("publish toggle failed:", result.error);
-        return;
+      try {
+        const result = await publishCanvasAction(null, formData);
+        if (result && "error" in result && result.error) {
+          console.error("publish toggle failed:", result.error);
+          return;
+        }
+        setPublished(next);
+        router.refresh();
+      } catch (error) {
+        // A failed call used to leave the checkbox disabled forever; surface
+        // the problem instead of swallowing the rejection.
+        console.error("publish toggle threw:", error);
+      } finally {
+        setSavingPublish(false);
       }
-      setPublished(next);
-      router.refresh();
     },
     [payload.id, router],
   );
