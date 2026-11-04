@@ -94,13 +94,24 @@ async function connectCards(page: Page, fromText: string, toText: string) {
   const from = card(page, fromText).locator(
     '.react-flow__handle[data-handleid="right"]',
   );
-  const to = await card(page, toText).boundingBox();
-  expect(to, `target card "${toText}" should have a bounding box`).toBeTruthy();
+  // React Flow completes a connection only when the release lands on a
+  // handle (loose mode lets the same handle serve as the endpoint), so the
+  // drop goes to the target's left handle, not its body centre.
+  const to = card(page, toText).locator(
+    '.react-flow__handle[data-handleid="left"]',
+  );
+  const target = await to.boundingBox();
+  expect(
+    target,
+    `left handle of "${toText}" should have a bounding box`,
+  ).toBeTruthy();
   await from.hover();
   await page.mouse.down();
-  await page.mouse.move(to!.x + to!.width / 2, to!.y + to!.height / 2, {
-    steps: 8,
-  });
+  await page.mouse.move(
+    target!.x + target!.width / 2,
+    target!.y + target!.height / 2,
+    { steps: 8 },
+  );
   await page.mouse.up();
   await expect(page.locator(".react-flow__edge")).toHaveCount(1, {
     timeout: 16_000,
