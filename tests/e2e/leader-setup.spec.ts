@@ -37,7 +37,7 @@ test("sign in as the seeded leader and save the leader session", async ({
   // The seeded account must choose a password before it can do anything
   // (every leader page redirects to /reset-password while the flag is set).
   await expect(page).toHaveURL(/\/reset-password/);
-  await page.getByLabel("New password").fill(LEADER_PASSWORD);
+  await page.getByLabel("New password", { exact: true }).fill(LEADER_PASSWORD);
   await page.getByLabel("Repeat the new password").fill(LEADER_PASSWORD);
   await page.getByRole("button", { name: "Save password" }).click();
 
