@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { uuidLike } from "@/lib/canvas/schemas";
 
 // Spec section 11.1: password minimum 10 characters.
 export const passwordSchema = z.string().min(10, "Use at least 10 characters.");
@@ -393,7 +394,9 @@ export type SettingsUpdateValues = z.infer<typeof settingsUpdateSchema>;
 // ---------------------------------------------------------------------------
 
 export const createCanvasSchema = z.object({
-  course_id: z.uuid("Pick a course first."),
+  // Seed course ids are deliberately not RFC UUIDs (QUESTIONS #19, #49) —
+  // PostgreSQL accepts them; the strict z.uuid() format does not.
+  course_id: uuidLike("Pick a course first."),
   title: z
     .string()
     .trim()
@@ -412,7 +415,8 @@ export const publishCanvasSchema = z.object({
 });
 
 export const defaultCanvasSchema = z.object({
-  course_id: z.uuid(),
+  // Same seed-id note as createCanvasSchema above.
+  course_id: uuidLike("Pick a course first."),
   canvas_id: z.uuid(),
 });
 

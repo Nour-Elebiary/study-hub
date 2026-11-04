@@ -18,13 +18,16 @@ export type Side = (typeof SIDES)[number];
 export type CanvasColor = (typeof CANVAS_COLORS)[number];
 export type EdgeEnd = (typeof EDGE_ENDS)[number];
 
-// Relaxed on purpose: seed ids are not RFC UUIDs (QUESTIONS #19).
-export const uuidLike = z
-  .string()
-  .min(1)
-  .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
-    message: "not a valid id",
-  });
+// Relaxed on purpose: seed ids are not RFC UUIDs (QUESTIONS #19, #49) and
+// PostgreSQL stores any 8-4-4-12 hex string. A message parameter lets
+// schema-level errors stay in plain language (spec section 11).
+export const uuidLike = (message = "not a valid id") =>
+  z
+    .string()
+    .min(1)
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+      message,
+    });
 
 export const cardKind = z.enum(CARD_KINDS);
 export const side = z.enum(SIDES);
@@ -73,10 +76,10 @@ const httpUrl = z
 const nodeAdd = z
   .object({
     op: z.literal("node.add"),
-    id: uuidLike,
+    id: uuidLike(),
     kind: cardKind,
-    node_id: uuidLike.optional(),
-    asset_id: uuidLike.optional(),
+    node_id: uuidLike().optional(),
+    asset_id: uuidLike().optional(),
     url: httpUrl.optional(),
     x: coord,
     y: coord,
@@ -124,7 +127,7 @@ const nodeAdd = z
 const nodeUpdate = z
   .object({
     op: z.literal("node.update"),
-    id: uuidLike,
+    id: uuidLike(),
     x: coord.optional(),
     y: coord.optional(),
     width: cardWidth.optional(),
@@ -151,15 +154,15 @@ const nodeUpdate = z
 
 const nodeDelete = z.object({
   op: z.literal("node.delete"),
-  id: uuidLike,
+  id: uuidLike(),
 });
 
 const edgeAdd = z
   .object({
     op: z.literal("edge.add"),
-    id: uuidLike,
-    from_node: uuidLike,
-    to_node: uuidLike,
+    id: uuidLike(),
+    from_node: uuidLike(),
+    to_node: uuidLike(),
     from_side: side.optional(),
     to_side: side.optional(),
     from_end: edgeEnd.optional(),
@@ -180,7 +183,7 @@ const edgeAdd = z
 const edgeUpdate = z
   .object({
     op: z.literal("edge.update"),
-    id: uuidLike,
+    id: uuidLike(),
     from_side: side.optional(),
     to_side: side.optional(),
     from_end: edgeEnd.optional(),
@@ -200,7 +203,7 @@ const edgeUpdate = z
 
 const edgeDelete = z.object({
   op: z.literal("edge.delete"),
-  id: uuidLike,
+  id: uuidLike(),
 });
 
 export const canvasOp = z.discriminatedUnion("op", [

@@ -90,37 +90,11 @@ export async function createCanvasAction(
   formData: FormData,
 ): Promise<CanvasActionState> {
   await requireSession();
-  // TEMPORARY M9 debug (remove when canvas e2e is green): log exactly what
-  // the submitted form contained. Server stdout surfaces in the CI step log;
-  // no secrets or account data here — a course uuid and a map title only.
-  if (process.env.E2E_PROD === "1") {
-    console.error(
-      "[M9-DBG] createCanvas submit; keys:",
-      [...formData.keys()].join(","),
-      "course_id:",
-      formData.get("course_id"),
-      "title:",
-      formData.get("title"),
-    );
-  }
   const parsed = createCanvasSchema.safeParse({
     course_id: formData.get("course_id"),
     title: formData.get("title"),
   });
-  if (!parsed.success) {
-    if (process.env.E2E_PROD === "1") {
-      console.error(
-        "[M9-DBG] createCanvas rejected:",
-        JSON.stringify(
-          parsed.error.issues.map((issue) => ({
-            path: issue.path.join("."),
-            msg: issue.message,
-          })),
-        ),
-      );
-    }
-    return failed(firstIssue(parsed.error));
-  }
+  if (!parsed.success) return failed(firstIssue(parsed.error));
   const { course_id, title } = parsed.data;
 
   const allowed = await canEdit(course_id);
