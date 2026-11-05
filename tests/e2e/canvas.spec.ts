@@ -310,7 +310,7 @@ test.describe.serial("canvas (M9 acceptance a–d)", () => {
         { timeout: 16_000 },
       );
       await expect(
-        studentPage.getByRole("heading", { name: "Quiz 1 prep" }),
+        studentPage.getByRole("heading", { name: "Quiz 1 prep", exact: true }),
       ).toBeVisible();
 
       // axe on the student viewer page (continue from the map view).
