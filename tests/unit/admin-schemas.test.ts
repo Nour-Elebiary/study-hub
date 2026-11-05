@@ -3,6 +3,7 @@ import {
   courseCreateSchema,
   leaderCreateSchema,
   membershipSchema,
+  settingsUpdateSchema,
 } from "@/lib/schemas";
 
 describe("leaderCreateSchema", () => {
@@ -95,6 +96,44 @@ describe("membershipSchema", () => {
       ...base,
       valid_from: "2026-02-01",
       valid_until: "2026-03-01",
+    });
+    expect(parsed.success).toBe(true);
+  });
+});
+
+describe("settingsUpdateSchema", () => {
+  const base = {
+    site_name: "Study Hub",
+    max_file_mb: 10,
+    retention_ai_days: 90,
+    retention_audit_days: 365,
+    retention_deleted_note_days: 30,
+    ai_daily_allowance_per_leader: 0,
+    db_limit_mb: 500,
+    storage_limit_mb: 1024,
+    max_canvas_cards: 20,
+    max_canvases_per_course: 20,
+    canvas_version_keep_auto: 30,
+    canvas_import_max_kb: 1024,
+    vault_export_max_mb: 200,
+    realtime_enabled: 1,
+    max_live_editors_per_canvas: 5,
+    max_events_per_course: 200,
+    retention_view_counts_days: 365,
+  };
+
+  it("accepts a save without the password (recent login path)", () => {
+    // The client only sends the password after the 401 prompt; a save
+    // without it must reach the recent-login check, not the schema
+    // (QUESTIONS #52).
+    const parsed = settingsUpdateSchema.safeParse(base);
+    expect(parsed.success).toBe(true);
+  });
+
+  it("accepts a save with the password", () => {
+    const parsed = settingsUpdateSchema.safeParse({
+      ...base,
+      password: "LEADER-PASS-2026",
     });
     expect(parsed.success).toBe(true);
   });
