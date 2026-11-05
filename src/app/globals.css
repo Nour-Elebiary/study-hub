@@ -178,3 +178,16 @@
     }
   }
 }
+
+/* Canvas card colours (CANVAS-SPEC section 5.6): palette slots 1-6 mapped to
+   actual colours. The final brand tints are chosen in M11's design pass; the
+   values below are the temporary M9 set, picked for contrast on white and
+   distinguishable without colour (the legend names each slot in words). */
+:root {
+  --canvas-1: #fee2e2; /* red-ish */
+  --canvas-2: #fef3c7; /* amber-ish */
+  --canvas-3: #dcfce7; /* green-ish */
+  --canvas-4: #cffafe; /* cyan-ish */
+  --canvas-5: #ede9fe; /* violet-ish */
+  --canvas-6: #f1f5f9; /* slate-ish */
+}

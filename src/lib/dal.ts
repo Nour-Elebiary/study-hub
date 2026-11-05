@@ -69,3 +69,7 @@ export async function requireSession(): Promise<Session> {
   }
   return session;
 }
+
+// Canvas data access (M9, spec section 5.5): re-exported so `dal.ts` stays
+// the single data-access choke point.
+export * from "./dal-canvas";

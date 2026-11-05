@@ -1,11 +1,8 @@
-import { z } from "zod";
 import { writeAudit } from "@/lib/audit";
 import { checkRecentLogin } from "@/lib/admin-auth";
 import { getSession } from "@/lib/dal";
 import { SETTING_DEFS, writeSetting } from "@/lib/settings";
 import { settingsUpdateSchema } from "@/lib/schemas";
-
-const bodySchema = settingsUpdateSchema.extend({ password: z.string() });
 
 /**
  * PUT /api/admin/settings (spec section 9, Settings row). Editing limits is
@@ -24,7 +21,12 @@ export async function PUT(request: Request) {
   } catch {
     return Response.json({ error: "bad request" }, { status: 400 });
   }
-  const parsed = bodySchema.safeParse(body);
+  // password is optional in settingsUpdateSchema: clients save without it
+  // while the recent-login window is open, then re-send with it after the
+  // 401 prompt (QUESTIONS #52 — a required-password extend here used to
+  // reject every password-less save with "expected string, received
+  // undefined" before the recent-login check could run).
+  const parsed = settingsUpdateSchema.safeParse(body);
   if (!parsed.success) {
     return Response.json(
       { error: parsed.error.issues[0]?.message ?? "Check the form." },

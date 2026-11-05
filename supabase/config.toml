@@ -220,8 +220,15 @@ web3 = 30
 # secret = ""
 
 [auth.email]
-# Allow/disallow new user signups via email to your project.
-enable_signup = false
+# Allow/disallow new user signups via email into your project.
+# Kept `true` locally so password sign-ins can work at all: when this is
+# `false`, GoTrue (Supabase CLI 2.x) treats the email provider itself as
+# disabled and rejects every /auth/v1/token password grant with
+# 422 email_provider_disabled "Email logins are disabled" (QUESTIONS #48).
+# The Study Hub app has no signup screen — users come from the seed/admin
+# portal — and this file never affects the hosted project's dashboard
+# settings, where signups stay off.
+enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true

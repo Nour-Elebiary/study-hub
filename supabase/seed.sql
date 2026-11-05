@@ -2,12 +2,16 @@
 -- LOCAL AND CI ONLY: creates the first admin with a known temporary password.
 -- The hosted project's real admin is created through the Supabase dashboard
 -- or the admin portal (M1); never run this seed against production data.
+-- Note: GoTrue scans seven token-shaped columns of auth.users as non-null
+-- strings, so every auth.users row here must set them all to '' — a NULL
+-- makes sign-in fail with "invalid login credentials" (QUESTIONS #47).
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
   created_at, updated_at,
-  confirmation_token, recovery_token, email_change_token_new, email_change, is_super_admin
+  confirmation_token, recovery_token, email_change_token_new, email_change, is_super_admin,
+  email_change_token_current, phone_change, phone_change_token
 ) values (
   '00000000-0000-0000-0000-000000000000',
   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -18,7 +22,8 @@ insert into auth.users (
   '{"provider":"email","providers":["email"]}',
   '{"display_name":"Nour (admin)","global_role":"admin"}',
   now (), now (),
-  '', '', '', '', false
+  '', '', '', '', false,
+  '', '', ''
 ) on conflict (id) do nothing;
 
 insert into auth.identities (
@@ -41,7 +46,8 @@ insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
   created_at, updated_at,
-  confirmation_token, recovery_token, email_change_token_new, email_change, is_super_admin
+  confirmation_token, recovery_token, email_change_token_new, email_change, is_super_admin,
+  email_change_token_current, phone_change, phone_change_token
 ) values (
   '00000000-0000-0000-0000-000000000000',
   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
@@ -52,7 +58,8 @@ insert into auth.users (
   '{"provider":"email","providers":["email"]}',
   '{"display_name":"Backup admin","global_role":"admin"}',
   now (), now (),
-  '', '', '', '', false
+  '', '', '', '', false,
+  '', '', ''
 ) on conflict (id) do nothing;
 
 insert into auth.identities (

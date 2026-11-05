@@ -16,7 +16,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * window).
  */
 export type RateLimitPurpose =
-  "join" | "suggest" | "login" | "ai_key" | "ai_chat";
+  | "join"
+  | "suggest"
+  | "login"
+  | "ai_key"
+  | "ai_chat"
+  | "canvas_ops"
+  | "canvas_create";
 
 // Spec section 10: join 5 per minute, suggestions 3 per hour per IP.
 // The login limit is our choice (docs/QUESTIONS.md #11): 5 attempts per
@@ -24,7 +30,9 @@ export type RateLimitPurpose =
 // Adding AI keys is rare and mistakes are cheap to retry later, so 5 per
 // hour per IP is plenty (and slows key-stuffing attempts). AI chat gets a
 // burst cap per IP; the fair-use daily allowance per leader is the real
-// control (spec section 8).
+// control (spec section 8). Canvas ops (spec section 10, M9): 240 batches
+// per minute keeps up with dragging; 20 new maps per hour per IP stops a
+// runaway "generate" loop.
 const LIMITS: Record<RateLimitPurpose, { max: number; windowSeconds: number }> =
   {
     join: { max: 5, windowSeconds: 60 },
@@ -32,6 +40,8 @@ const LIMITS: Record<RateLimitPurpose, { max: number; windowSeconds: number }> =
     login: { max: 5, windowSeconds: 60 * 15 },
     ai_key: { max: 5, windowSeconds: 60 * 60 },
     ai_chat: { max: 20, windowSeconds: 60 },
+    canvas_ops: { max: 240, windowSeconds: 60 },
+    canvas_create: { max: 20, windowSeconds: 60 * 60 },
   };
 
 /** The caller's IP from the proxy headers Vercel sets. */

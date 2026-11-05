@@ -49,6 +49,41 @@ see "Heavy jobs" below. Each file has two switches students care about:
 **visible to students** and **downloadable**. Turn downloads off for
 material the professor does not want copied.
 
+## Course maps (canvas)
+
+A course map is a one-picture view of the course: cards you can arrange,
+connect with arrows, and colour-code. Everyone in the course can edit maps —
+you create one like this:
+
+1. Open your course and tap **Maps** (the canvas screen).
+2. **New map** starts an empty one; **Generate from course** asks the site to
+   draft a map for you — it places a core card connected to a group card per
+   section, with your published notes inside each group.
+3. On the map: add cards with the toolbar buttons (**Add text card** for your
+   own words, **Add note** to place one of the course notes, **Add file**
+   for an uploaded file, **Add group** to gather cards). Drag cards around
+   and pull a line between two cards to connect them.
+4. Colours: select a card and pick a colour, then name each colour in the
+   **Legend** (e.g. red = "exam material"). Cards with a published note show
+   the note title; draft notes show a **Draft** tag and students will never
+   see them on the map.
+5. Your work saves by itself a moment after each change ("Saved" in the
+   toolbar). Every save keeps a backup — open **Backups** to look at and
+   restore an older version. **Undo** brings back a card you just removed.
+6. When the map is ready, tick **Students can see**. Unticked maps stay
+   private to the team. In the map list the first map you make is the one
+   students open by default; "Make default" changes that.
+
+Students see only published maps and only the material inside them marked
+as visible — on a phone the course outline comes first and the map opens
+behind an "Open map" button. Tap a card: notes open, downloadable files
+download, links open in a new tab.
+
+Limits to know: a map holds at most the number of cards set in the admin
+Settings ("Most cards on one map") — if you ever see "This map is full…",
+start a second map or remove cards; each course holds at most 20 maps by
+default.
+
 ## Students and join codes
 
 Students do not have accounts. They open the student site and enter a join
