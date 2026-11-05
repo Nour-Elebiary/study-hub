@@ -193,34 +193,22 @@ export async function publishCanvasAction(
   _prev: CanvasActionState,
   formData: FormData,
 ): Promise<CanvasActionState> {
-  // TEMPORARY M9 debug (remove when e2e is green): timestamped step log to
-  // localize where the publish action was hanging without a response.
-  const dbg = process.env.E2E_PROD === "1";
-  const mark = (step: string) => {
-    if (dbg) console.error(`[M9-DBG] publish ${step}`);
-  };
-  mark("begin");
   await requireSession();
-  mark("session ok");
   const parsed = publishCanvasSchema.safeParse({
     canvas_id: formData.get("canvas_id"),
     published: formData.get("published") === "true",
   });
   if (!parsed.success) return failed(firstIssue(parsed.error));
-  mark("parsed ok");
 
   const courseId = await courseOf(parsed.data.canvas_id);
   if (!courseId) return failed("This map no longer exists.");
-  mark("course resolved");
   const allowed = await canEdit(courseId);
   if (!allowed) return failed("You are not allowed to edit this course.");
-  mark("canEdit ok");
 
   const result = await setPublished(
     parsed.data.canvas_id,
     parsed.data.published,
   );
-  mark("update done");
   if (!result.ok) {
     console.error("setPublished failed:", result.log);
     return failed(result.user);
@@ -233,10 +221,8 @@ export async function publishCanvasAction(
     entityId: parsed.data.canvas_id,
     meta: { course_id: courseId, published: parsed.data.published },
   });
-  mark("audit done");
   revalidateCourse(courseId, parsed.data.canvas_id);
   revalidatePath(`/s/map/${courseId}`);
-  mark("revalidated");
   return { ok: true };
 }
 

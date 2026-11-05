@@ -75,24 +75,6 @@ jobs:
             -e 's/^SERVICE_ROLE_KEY=/SUPABASE_SERVICE_ROLE_KEY=/' > .env.local
           grep -v -E '^(NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY)=' \
             .env.example >> .env.local
-      # TEMPORARY diagnostic (remove once leader-setup sign-in is green):
-      # calls the GoTrue password-grant endpoint the same way the app would,
-      # printing only the HTTP status and the error/error_code field so the
-      # CI log never shows a key value or an issued token.
-      - name: DEBUG raw GoTrue sign-in for the seeded admin
-        run: |
-          set -a
-          source .env.local
-          set +a
-          echo "env keys present in .env.local:"
-          grep -oE '^[A-Z_]+=' .env.local | cut -d= -f1
-          echo "GoTrue HTTP status for admin@studyhub.local:"
-          curl -s -o /tmp/token.json -w "%{http_code}\n" \
-            -X POST "${NEXT_PUBLIC_SUPABASE_URL}/auth/v1/token?grant_type=password" \
-            -H "apikey: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"admin@studyhub.local","password":"ChangeMe-Admin-01"}'
-          grep -oE '"(error|error_code|msg)"[^,}]*' /tmp/token.json || true
       # The offline e2e test needs a production build: the service worker
       # registers only in production, so E2E_PROD switches Playwright's
       # webServer to `npm run start`.
