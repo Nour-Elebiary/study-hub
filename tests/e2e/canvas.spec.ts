@@ -333,7 +333,11 @@ test.describe.serial("canvas (M9 acceptance a–d)", () => {
     );
 
     await withStudent(browser, testInfo, async (studentPage) => {
-      await studentPage.goto(draftPath);
+      // draftPath is the *leader* editor route returned by createMap; a
+      // student hitting it is redirected to sign-in. Students open maps,
+      // including not-found ones, on their own /s/canvas route.
+      const canvasId = draftPath.split("/").pop()!;
+      await studentPage.goto(`/s/canvas/${canvasId}`);
       // Drafts stream a 200 but render the standard not-found screen
       // (QUESTIONS #27): its explanatory paragraph tells the student why,
       // and no editing or canvas content leaks into the document.
