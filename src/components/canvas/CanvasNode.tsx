@@ -126,11 +126,16 @@ function CanvasNodeInner(props: NodeProps<CanvasFlowNode>) {
           ? `/s/download/${card.assetId}`
           : null;
   const linked = maybeLinked ? (
+    // React Flow puts `pointer-events: none` inline on every node wrapper
+    // that is not selectable, draggable or wired to click handlers — the
+    // student viewer is exactly that, so these cards would never be
+    // tappable (and the student could not open a note or download a file
+    // from the map, spec 5.7). The link layer restores pointer events.
     <Link
       href={maybeLinked}
       target={card.kind === "link" ? "_blank" : undefined}
       rel={card.kind === "link" ? "noopener noreferrer" : undefined}
-      className="block h-full w-full rounded-[10px]"
+      className="pointer-events-auto block h-full w-full rounded-[10px]"
     >
       {detail}
     </Link>
