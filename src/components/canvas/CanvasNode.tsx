@@ -68,9 +68,15 @@ function CanvasNodeInner(props: NodeProps<CanvasFlowNode>) {
   const { data, selected } = props;
   const card = data.card;
   const leader = data.leader;
-  const { removeCard } = useCanvasContext();
+  const { removeCard, toggleStudentVisible } = useCanvasContext();
   const zoom = useStore((store) => store.transform[2]);
   const detailed = zoom >= LOD_ZOOM;
+
+  // The eye toggle lives on text, link and group cards only (spec 6.2);
+  // note and file visibility is managed in their own menus.
+  const hasEyeToggle =
+    leader &&
+    (card.kind === "text" || card.kind === "link" || card.kind === "group");
 
   const title = (function () {
     switch (card.kind) {
@@ -165,6 +171,22 @@ function CanvasNodeInner(props: NodeProps<CanvasFlowNode>) {
           className="bg-background text-destructive absolute -top-2 -right-2 z-10 rounded-full border px-2 py-0.5 text-[11px] font-semibold shadow"
         >
           Remove from map
+        </button>
+      ) : null}
+
+      {leader && selected && hasEyeToggle ? (
+        <button
+          type="button"
+          onClick={() => toggleStudentVisible(card.id, !card.studentVisible)}
+          aria-label={
+            card.studentVisible ? "Hide from students" : "Show to students"
+          }
+          title={
+            card.studentVisible ? "Hide from students" : "Show to students"
+          }
+          className="bg-background absolute -top-2 -left-2 z-10 rounded-full border px-2 py-0.5 text-[11px] shadow"
+        >
+          <span aria-hidden="true">{card.studentVisible ? "👁" : "🙈"}</span>
         </button>
       ) : null}
 

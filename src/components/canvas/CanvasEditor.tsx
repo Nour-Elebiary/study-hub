@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   Background,
@@ -12,6 +19,7 @@ import {
   type Node,
   type NodeChange,
   type NodeDimensionChange,
+  type OnNodeDrag,
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -37,8 +45,12 @@ import {
   type HistoryState,
 } from "@/lib/canvas/history";
 import { SaveQueue, type SaveStatus } from "@/lib/canvas/save-queue";
-import { nearestSide } from "@/lib/canvas/geometry";
-import { snap } from "@/lib/canvas/geometry";
+import {
+  cardsInsideGroup,
+  nearestSide,
+  snap,
+  unionRect,
+} from "@/lib/canvas/geometry";
 import {
   CARD_KINDS,
   SIDES,
@@ -46,7 +58,7 @@ import {
   type Side,
 } from "@/lib/canvas/schemas";
 import { GRID_SIZE, ZOOM_RANGE } from "@/lib/canvas/defaults";
-import type { CanvasCard, CanvasState } from "@/lib/canvas/types";
+import type { CanvasCard, CanvasEdge, CanvasState } from "@/lib/canvas/types";
 import type { CanvasPayload, PickerFile, PickerNote } from "./payload";
 import {
   applyCanvasOpsAction,
@@ -115,6 +127,34 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 }
 
+/**
+ * Ctrl/Cmd+C keeps an in-page snapshot of the selected cards plus the edges
+ * between them (spec 6.2 paste: "Study Hub cards → copies with the same
+ * references"). The plain text twin goes on the system clipboard; when a
+ * later paste hands back exactly that text, the snapshot duplicates as
+ * cards. Any other text pastes as a text / link card instead.
+ */
+type CopySnapshot = {
+  cards: CanvasCard[];
+  edges: CanvasEdge[];
+  text: string;
+};
+
+/** One plain text line per card: label, else body, else the URL. */
+const cardText = (card: CanvasCard): string =>
+  (card.label ?? card.body ?? card.url ?? "").replace(/\r?\n/g, " ");
+
+const snapshotText = (cards: readonly CanvasCard[]): string =>
+  cards.map(cardText).join("\n");
+
+/** Arrow key → one grid step in that direction (spec 6.3 nudge). */
+const ARROW_NUDGE = {
+  arrowleft: [-GRID_SIZE, 0],
+  arrowright: [GRID_SIZE, 0],
+  arrowup: [0, -GRID_SIZE],
+  arrowdown: [0, GRID_SIZE],
+} as const;
+
 function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   const router = useRouter();
 
@@ -151,6 +191,14 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   // The ids of the most recent undo batch, so the send adapter can tell
   // "another leader removed a card this undo touches" apart (spec 6.4).
   const undoTagsRef = useRef<Set<string> | null>(null);
+  // Ctrl/Cmd+C snapshot (spec 6.2): cards + edges between them + their plain
+  // text twin, and the group-drag snapshot of cards inside at drag start.
+  const copyRef = useRef<CopySnapshot | null>(null);
+  const groupDragRef = useRef<{
+    groupId: string;
+    origin: { x: number; y: number };
+    followers: Array<{ id: string; x: number; y: number }>;
+  } | null>(null);
   // --------------------------------------------------------------------------
   // Visual sync: apply an op batch to the React Flow lists (adds, removals,
   // edits) so the optimistic state and the screen stay one thing.
@@ -450,6 +498,40 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   );
 
   // --------------------------------------------------------------------------
+  // Selection helpers (spec 6.2: Shift-drag, Ctrl+click handled by React
+  // Flow props; Ctrl+A, Esc and Tab move selection from here).
+  // --------------------------------------------------------------------------
+  const setOneSelected = useCallback(
+    (nodeId: string) => {
+      setNodes((current) =>
+        current.map((node) => ({ ...node, selected: node.id === nodeId })),
+      );
+    },
+    [setNodes],
+  );
+
+  const setAllSelected = useCallback(() => {
+    setNodes((current) => current.map((node) => ({ ...node, selected: true })));
+  }, [setNodes]);
+
+  const clearSelection = useCallback(() => {
+    setNodes((current) =>
+      current.map((node) =>
+        node.selected ? { ...node, selected: false } : node,
+      ),
+    );
+  }, [setNodes]);
+
+  /** Brings a card into view after keyboard selection moves (spec 6.3). */
+  const centerOn = useCallback((card: CanvasCard) => {
+    flowRef.current?.setCenter(
+      card.x + card.width / 2,
+      card.y + card.height / 2,
+      { duration: 200 },
+    );
+  }, []);
+
+  // --------------------------------------------------------------------------
   // Remove from map + Undo toast (history-driven, spec 6.4)
   // --------------------------------------------------------------------------
   const removeCards = useCallback(
@@ -496,16 +578,21 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     (
       kind: CanvasCard["kind"],
       seed: Partial<Extract<CanvasOp, { op: "node.add" }>> = {},
+      // Double-click drops the card at the mouse position (spec 6.2);
+      // without `at` the card lands where the view currently looks.
+      at?: { x: number; y: number },
     ) => {
       const flow = flowRef.current;
-      const centre = flow
-        ? flow.screenToFlowPosition({
-            x: window.innerWidth / 2,
-            y: window.innerHeight / 2,
-          })
-        : { x: 40, y: 40 };
+      const centre =
+        at ??
+        (flow
+          ? flow.screenToFlowPosition({
+              x: window.innerWidth / 2,
+              y: window.innerHeight / 2,
+            })
+          : { x: 40, y: 40 });
       const size = defaultSizeOf(kind);
-      const jitter = (nodes.length % 5) * 24;
+      const jitter = at ? 0 : (nodes.length % 5) * 24;
       const op: CanvasOp = {
         op: "node.add",
         id: crypto.randomUUID(),
@@ -517,10 +604,313 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         ...seed,
       } as CanvasOp;
       commit([op]);
+      // The new card becomes the selection, so the chrome (remove, eye,
+      // recolour) is immediately reachable — plain language, no hunting.
+      setOneSelected(op.id);
+      return op.id;
     },
-    [commit, nodes.length],
+    [commit, nodes.length, setOneSelected],
   );
 
+  // --------------------------------------------------------------------------
+  // Interactions (spec 6.2 keyboard/clipboard/layers/groups)
+  // --------------------------------------------------------------------------
+  const toggleStudentVisible = useCallback(
+    (cardId: string, visible: boolean) => {
+      commit([{ op: "node.update", id: cardId, student_visible: visible }]);
+    },
+    [commit],
+  );
+
+  /** Nudge every selected card by one 20 px grid step (one undo entry). */
+  const nudgeSelected = useCallback(
+    (dx: number, dy: number) => {
+      if (selectedCardIds.length === 0) return;
+      const ops: CanvasOp[] = [];
+      for (const id of selectedCardIds) {
+        const card = stateRef.current.cards[id];
+        if (!card) continue;
+        const x = snap(card.x + dx, GRID_SIZE);
+        const y = snap(card.y + dy, GRID_SIZE);
+        if (x === card.x && y === card.y) continue;
+        ops.push({ op: "node.update", id, x, y });
+      }
+      commit(ops);
+    },
+    [commit, selectedCardIds],
+  );
+
+  /** Copies of the cards (+ edges between them) shifted one grid step. */
+  const buildDuplicateOps = useCallback(
+    (cards: readonly CanvasCard[], edges: readonly CanvasEdge[]) => {
+      const idMap = new Map<string, string>();
+      for (const card of cards) idMap.set(card.id, crypto.randomUUID());
+      const ops: CanvasOp[] = cards.map((card) => ({
+        op: "node.add",
+        id: idMap.get(card.id) as string,
+        kind: card.kind,
+        x: card.x + GRID_SIZE,
+        y: card.y + GRID_SIZE,
+        width: card.width,
+        height: card.height,
+        z: card.z,
+        color: card.color,
+        body: card.body ?? undefined,
+        label: card.label ?? undefined,
+        url: card.url ?? undefined,
+        node_id: card.nodeId ?? undefined,
+        asset_id: card.assetId ?? undefined,
+        student_visible: card.studentVisible,
+      })) as CanvasOp[];
+      for (const edge of edges) {
+        const from = idMap.get(edge.from);
+        const to = idMap.get(edge.to);
+        if (!from || !to) continue;
+        ops.push({
+          op: "edge.add",
+          id: crypto.randomUUID(),
+          from_node: from,
+          to_node: to,
+          from_side: edge.fromSide,
+          to_side: edge.toSide,
+          from_end: edge.fromEnd,
+          to_end: edge.toEnd,
+          label: edge.label ?? undefined,
+          color: edge.color,
+        } as CanvasOp);
+      }
+      return ops;
+    },
+    [],
+  );
+
+  /** Ctrl/Cmd+D duplicates the selection with the same references. */
+  const duplicateSelected = useCallback(() => {
+    const batch = new Set(selectedCardIds);
+    if (batch.size === 0) return;
+    const cards = selectedCardIds
+      .map((id) => stateRef.current.cards[id])
+      .filter((card): card is CanvasCard => card !== undefined);
+    const between = Object.values(stateRef.current.edges).filter(
+      (edge) => batch.has(edge.from) && batch.has(edge.to),
+    );
+    commit(buildDuplicateOps(cards, between));
+  }, [commit, selectedCardIds, buildDuplicateOps]);
+
+  /** Ctrl/Cmd+C keeps the snapshot for paste-as-cards, plus clipboard text. */
+  const copySelected = useCallback(() => {
+    const batch = new Set(selectedCardIds);
+    if (batch.size === 0) return;
+    const cards = selectedCardIds
+      .map((id) => stateRef.current.cards[id])
+      .filter((card): card is CanvasCard => card !== undefined);
+    const between = Object.values(stateRef.current.edges).filter(
+      (edge) => batch.has(edge.from) && batch.has(edge.to),
+    );
+    const text = snapshotText(cards);
+    copyRef.current = { cards, edges: between, text };
+    // Best effort only: pasting never depends on the system clipboard.
+    void navigator.clipboard.writeText(text).catch(() => {});
+  }, [selectedCardIds]);
+
+  /** Ctrl/Cmd+V pastes: cards snapshot, or plain text / a URL as a new card. */
+  const pasteFromClipboard = useCallback(
+    (text: string) => {
+      const snapshot = copyRef.current;
+      if (snapshot && snapshot.text !== "" && snapshot.text === text) {
+        commit(buildDuplicateOps(snapshot.cards, snapshot.edges));
+        return;
+      }
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      if (/^https?:\/\//i.test(trimmed)) {
+        addCard("link", { url: trimmed, label: trimmed.slice(0, 200) });
+      } else {
+        addCard("text", { body: trimmed.slice(0, 20000) });
+      }
+    },
+    [commit, buildDuplicateOps, addCard],
+  );
+
+  /** `G`: a group frame (padding 40) that wraps the selection. */
+  const groupSelected = useCallback(() => {
+    if (selectedCardIds.length === 0) return;
+    const cards = selectedCardIds
+      .map((id) => stateRef.current.cards[id])
+      .filter((card): card is CanvasCard => card !== undefined);
+    const rect = unionRect(cards);
+    if (!rect) return;
+    const op: CanvasOp = {
+      op: "node.add",
+      id: crypto.randomUUID(),
+      kind: "group",
+      label: "New group",
+      x: snap(rect.x - 40, GRID_SIZE),
+      y: snap(rect.y - 40, GRID_SIZE),
+      width: rect.width + 80,
+      height: rect.height + 80,
+    } as CanvasOp;
+    commit([op]);
+    setOneSelected(op.id);
+  }, [commit, selectedCardIds, setOneSelected]);
+
+  /**
+   * `]` / `[`: bring to front / send to back. Plain cards live in 0…1000,
+   * groups stay in −1000…−1 (spec 6.2), so the two never collide.
+   */
+  const layerSelected = useCallback(
+    (toFront: boolean) => {
+      if (selectedCardIds.length === 0) return;
+      const batch = new Set(selectedCardIds);
+      const others = Object.values(stateRef.current.cards).filter(
+        (card) => !batch.has(card.id),
+      );
+      const plain = others
+        .filter((card) => card.kind !== "group")
+        .map((card) => card.z);
+      const grouped = others
+        .filter((card) => card.kind === "group")
+        .map((card) => card.z);
+      const nextZ = (kind: CanvasCard["kind"]): number => {
+        if (kind === "group") {
+          const max = grouped.length > 0 ? Math.max(...grouped) : -1;
+          const min = grouped.length > 0 ? Math.min(...grouped) : -1;
+          return toFront
+            ? Math.max(-1000, Math.min(-1, max + 1))
+            : Math.max(-1000, min - 1);
+        }
+        const max = plain.length > 0 ? Math.max(...plain) : 0;
+        const min = plain.length > 0 ? Math.min(...plain) : 0;
+        return toFront ? Math.min(1000, max + 1) : Math.max(-1000, min - 1);
+      };
+      const ops: CanvasOp[] = [];
+      for (const id of selectedCardIds) {
+        const card = stateRef.current.cards[id];
+        if (!card) continue;
+        const z = nextZ(card.kind);
+        if (z === card.z) continue;
+        ops.push({ op: "node.update", id, z });
+      }
+      commit(ops);
+    },
+    [commit, selectedCardIds],
+  );
+
+  /** Tab / Shift+Tab walk the cards in reading order (top rows first). */
+  const tabTo = useCallback(
+    (step: 1 | -1) => {
+      const cards = Object.values(stateRef.current.cards);
+      if (cards.length === 0) return;
+      const rowBand = GRID_SIZE * 5;
+      const order = [...cards].sort(
+        (a, b) =>
+          Math.round(a.y / rowBand) - Math.round(b.y / rowBand) ||
+          a.x - b.x ||
+          a.id.localeCompare(b.id),
+      );
+      const current = selectedCardIds[selectedCardIds.length - 1];
+      const index = order.findIndex((card) => card.id === current);
+      const next =
+        order[(index + step + order.length) % order.length] ?? order[0]!;
+      setOneSelected(next.id);
+      centerOn(next);
+    },
+    [centerOn, selectedCardIds, setOneSelected],
+  );
+
+  /** Alt+Arrow: nearest connected card in that direction (follows edges). */
+  const focusConnected = useCallback(
+    (dx: number, dy: number) => {
+      const anchorId = selectedCardIds[selectedCardIds.length - 1];
+      const anchor = anchorId ? stateRef.current.cards[anchorId] : null;
+      if (!anchorId || !anchor) return;
+      let best: { id: string; score: number } | null = null;
+      for (const edge of Object.values(stateRef.current.edges)) {
+        const otherId =
+          edge.from === anchorId
+            ? edge.to
+            : edge.to === anchorId
+              ? edge.from
+              : null;
+        if (!otherId) continue;
+        const other = stateRef.current.cards[otherId];
+        if (!other) continue;
+        const ddx = other.x - anchor.x;
+        const ddy = other.y - anchor.y;
+        const length = Math.hypot(ddx, ddy);
+        const along = ddx * dx + ddy * dy;
+        if (length === 0 || along <= 0) continue;
+        const score = along / length;
+        if (!best || score > best.score) best = { id: otherId, score };
+      }
+      if (!best) return;
+      setOneSelected(best.id);
+      const target = stateRef.current.cards[best.id];
+      if (target) centerOn(target);
+    },
+    [centerOn, selectedCardIds, setOneSelected],
+  );
+
+  // --------------------------------------------------------------------------
+  // Group-follow drag (spec 6.2): moving a group moves the cards whose
+  // centres were inside it at drag start, as ONE batched action.
+  // --------------------------------------------------------------------------
+  const onNodeDragStart: OnNodeDrag<RfNode> = useCallback((_event, node) => {
+    if (node.data.card.kind !== "group") {
+      groupDragRef.current = null;
+      return;
+    }
+    const card = stateRef.current.cards[node.id];
+    if (!card) {
+      groupDragRef.current = null;
+      return;
+    }
+    groupDragRef.current = {
+      groupId: node.id,
+      origin: { x: card.x, y: card.y },
+      followers: cardsInsideGroup(
+        card,
+        Object.values(stateRef.current.cards),
+      ).map((member) => ({ id: member.id, x: member.x, y: member.y })),
+    };
+  }, []);
+
+  const onNodeDragStop: OnNodeDrag<RfNode> = useCallback(
+    (_event, _node, nodes) => {
+      const snapshot = groupDragRef.current;
+      groupDragRef.current = null;
+      const ops: CanvasOp[] = [];
+      const touched = new Set<string>();
+      for (const dragged of nodes) {
+        const card = stateRef.current.cards[dragged.id];
+        if (!card) continue;
+        const x = snap(dragged.position.x, GRID_SIZE);
+        const y = snap(dragged.position.y, GRID_SIZE);
+        if (x === card.x && y === card.y) continue;
+        ops.push({ op: "node.update", id: dragged.id, x, y });
+        touched.add(dragged.id);
+      }
+      if (snapshot && touched.has(snapshot.groupId)) {
+        const groupOp = ops.find(
+          (op): op is Extract<CanvasOp, { op: "node.update" }> =>
+            op.op === "node.update" && op.id === snapshot.groupId,
+        );
+        const dx = groupOp?.x !== undefined ? groupOp.x - snapshot.origin.x : 0;
+        const dy = groupOp?.y !== undefined ? groupOp.y - snapshot.origin.y : 0;
+        for (const follower of snapshot.followers) {
+          if (touched.has(follower.id)) continue;
+          const x = snap(follower.x + dx, GRID_SIZE);
+          const y = snap(follower.y + dy, GRID_SIZE);
+          if (x === follower.x && y === follower.y) continue;
+          ops.push({ op: "node.update", id: follower.id, x, y });
+        }
+      }
+      if (ops.length > 0) commit(ops);
+    },
+    [commit],
+  );
+
+  // --------------------------------------------------------------------------
   // Pickers: notes/files of this course loaded through server actions when
   // the picker opens; cleared on close so they re-fetch next time.
   const openPicker = useCallback((kind: "note" | "file") => {
@@ -649,9 +1039,10 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     };
   }, [getQueue, payload.id, router]);
 
-  // Undo, redo and Ctrl+S are document-level; the rest of the 6.3 table is
-  // wired with the interactions slice. Shortcuts never fire while a text
-  // field, contenteditable or a palette input has focus (spec 6.3).
+  // The full §6.3 table that works without extra UI (the palette, the
+  // side pane and the `?` sheet attach to their own slices). Shortcuts
+  // never fire while a text field, contenteditable or a palette input has
+  // focus (spec 6.3).
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) return;
@@ -676,15 +1067,162 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         event.preventDefault();
         getQueue().flushNow();
         setVersionsOpen(true);
+        return;
+      }
+      if (mod && key === "a") {
+        event.preventDefault();
+        setAllSelected();
+        return;
+      }
+      if (mod && !event.shiftKey && key === "c") {
+        event.preventDefault();
+        copySelected();
+        return;
+      }
+      if (mod && !event.shiftKey && key === "d") {
+        event.preventDefault();
+        duplicateSelected();
+        return;
+      }
+      const arrow = ARROW_NUDGE[key as keyof typeof ARROW_NUDGE];
+      if (arrow) {
+        event.preventDefault();
+        if (event.altKey) {
+          focusConnected(arrow[0], arrow[1]);
+        } else {
+          nudgeSelected(arrow[0], arrow[1]);
+        }
+        return;
+      }
+      if (key === "delete" || key === "backspace") {
+        if (selectedCardIds.length > 0) {
+          event.preventDefault();
+          removeCards(selectedCardIds);
+        }
+        return;
+      }
+      if (key === "tab") {
+        event.preventDefault();
+        tabTo(event.shiftKey ? -1 : 1);
+        return;
+      }
+      if (key === "escape") {
+        // Close menu, pane, selection — in that order (spec 6.3).
+        if (picker !== null) {
+          closePicker();
+        } else if (legendOpen) {
+          setLegendOpen(false);
+        } else if (versionsOpen) {
+          setVersionsOpen(false);
+        } else {
+          clearSelection();
+        }
+        return;
+      }
+      if (mod || event.altKey) return;
+      if (key === "n") {
+        event.preventDefault();
+        addCard("text", { body: "Write here…" });
+        return;
+      }
+      if (key === "g") {
+        event.preventDefault();
+        groupSelected();
+        return;
+      }
+      if (key === "]") {
+        event.preventDefault();
+        layerSelected(true);
+        return;
+      }
+      if (key === "[") {
+        event.preventDefault();
+        layerSelected(false);
+        return;
+      }
+      if (key === "+" || key === "=") {
+        event.preventDefault();
+        flowRef.current?.zoomIn();
+        return;
+      }
+      if (key === "-" || key === "_") {
+        event.preventDefault();
+        flowRef.current?.zoomOut();
+        return;
+      }
+      if (key === "0") {
+        event.preventDefault();
+        flowRef.current?.fitView();
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [getQueue, undo, redo]);
+  }, [
+    addCard,
+    closePicker,
+    copySelected,
+    duplicateSelected,
+    clearSelection,
+    focusConnected,
+    getQueue,
+    groupSelected,
+    layerSelected,
+    legendOpen,
+    picker,
+    nudgeSelected,
+    redo,
+    removeCards,
+    selectedCardIds,
+    setAllSelected,
+    tabTo,
+    undo,
+    versionsOpen,
+  ]);
+
+  // Ctrl/Cmd+V surfaces as a paste event, which can read the text; the
+  // internal card snapshot wins when the text matches, otherwise the text
+  // becomes a link or text card (spec 6.2). Image paste arrives with M10 §6.5.
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      if (isEditableTarget(event.target)) return;
+      const text = event.clipboardData?.getData("text/plain") ?? "";
+      if (!text) return;
+      event.preventDefault();
+      pasteFromClipboard(text);
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [pasteFromClipboard]);
+
+  /** Double-click on empty space adds a text card there (spec 6.2). */
+  const onCanvasDoubleClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      const target = event.target;
+      if (
+        !(target instanceof HTMLElement) ||
+        !target.classList.contains("react-flow__pane")
+      ) {
+        return;
+      }
+      const flow = flowRef.current;
+      if (!flow) return;
+      const at = flow.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      addCard("text", { body: "Write here…" }, at);
+    },
+    [addCard],
+  );
 
   const contextValue = useMemo<CanvasContextValue>(
-    () => ({ queueOps, removeCard, recolourCard: recolourSelected }),
-    [queueOps, removeCard, recolourSelected],
+    () => ({
+      queueOps,
+      removeCard,
+      recolourCard: recolourSelected,
+      toggleStudentVisible,
+    }),
+    [queueOps, removeCard, recolourSelected, toggleStudentVisible],
   );
 
   // --------------------------------------------------------------------------
@@ -784,7 +1322,10 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         </p>
       ) : null}
 
-      <div className="h-[calc(100dvh-9rem)] w-full">
+      <div
+        className="h-[calc(100dvh-9rem)] w-full"
+        onDoubleClick={onCanvasDoubleClick}
+      >
         <ReactFlow
           onInit={(flow) => {
             flowRef.current = flow;
@@ -793,12 +1334,16 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
           edges={edges}
           onNodesChange={onNodesChangeAll}
           onEdgesChange={onEdgesChange}
-          onNodeDragStop={(_, node) => onNodeCommit(node)}
+          onNodeDragStart={onNodeDragStart}
+          onNodeDragStop={onNodeDragStop}
           onConnect={onConnect}
           nodeTypes={canvasNodeTypes}
           edgeTypes={canvasEdgeTypes}
           connectionMode={ConnectionMode.Loose}
           onlyRenderVisibleElements
+          // Spec 6.2 "Select many": Shift + drag a box, Ctrl + click adds.
+          selectionKeyCode="Shift"
+          multiSelectionKeyCode="Control"
           minZoom={ZOOM_RANGE.min}
           maxZoom={ZOOM_RANGE.max}
           defaultViewport={{
