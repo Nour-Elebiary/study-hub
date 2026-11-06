@@ -27,6 +27,16 @@ import LegendEditor from "./LegendEditor";
 import VersionsSheet from "./VersionsSheet";
 import { CanvasProvider, type CanvasContextValue } from "./editor-context";
 import { applyOps, invertOps, defaultSizeOf } from "@/lib/canvas/ops";
+import {
+  emptyHistory,
+  popRedo,
+  popUndo,
+  pushRedo,
+  pushUndo,
+  record as recordHistory,
+  type HistoryState,
+} from "@/lib/canvas/history";
+import { SaveQueue, type SaveStatus } from "@/lib/canvas/save-queue";
 import { nearestSide } from "@/lib/canvas/geometry";
 import { snap } from "@/lib/canvas/geometry";
 import {
@@ -40,6 +50,7 @@ import type { CanvasCard, CanvasState } from "@/lib/canvas/types";
 import type { CanvasPayload, PickerFile, PickerNote } from "./payload";
 import {
   applyCanvasOpsAction,
+  getCanvasRevAction,
   listPickerFilesAction,
   listPickerNotesAction,
   publishCanvasAction,
@@ -52,8 +63,6 @@ import {
  * writer, QUESTIONS #43). Loaded by the page's shell with next/dynamic
  * ssr:false so it never runs on the server.
  */
-
-type SaveStatus = "saved" | "saving" | "error";
 
 type RfNode = Node<CanvasNodeData>;
 type RfEdge = CanvasFlowEdge;
@@ -95,6 +104,17 @@ const toRfEdges = (payload: CanvasPayload): RfEdge[] =>
     };
   });
 
+/**
+ * Spec 6.3: shortcuts MUST NOT fire while a text field, the TipTap editor
+ * or a palette input has focus.
+ */
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
+
 function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   const router = useRouter();
 
@@ -115,7 +135,6 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   // The last plain-language save problem ("This map is full…"), shown under
   // the toolbar until the next successful save (spec 5.9 test d).
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
-  const [canUndo, setCanUndo] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [published, setPublished] = useState(payload.published);
@@ -124,8 +143,14 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   const [pickerNotes, setPickerNotes] = useState<PickerNote[] | null>(null);
   const [pickerFiles, setPickerFiles] = useState<PickerFile[] | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const lastDeleteRef = useRef<CanvasOp[] | null>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const flowRef = useRef<ReactFlowInstance<RfNode, RfEdge> | null>(null);
+  // Undo/redo history (spec 6.4): every user action is one entry.
+  const historyRef = useRef<HistoryState>(emptyHistory());
+  // The ids of the most recent undo batch, so the send adapter can tell
+  // "another leader removed a card this undo touches" apart (spec 6.4).
+  const undoTagsRef = useRef<Set<string> | null>(null);
   // --------------------------------------------------------------------------
   // Visual sync: apply an op batch to the React Flow lists (adds, removals,
   // edits) so the optimistic state and the screen stay one thing.
@@ -258,67 +283,128 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   );
 
   // --------------------------------------------------------------------------
-  // Save queue
+  // Save queue (spec 6.4): the pure SaveQueue class owns the quiet flush,
+  // coalescing, back-off retries, the offline pause and the chip states. The
+  // editor owns the browser glue around it (events, beforeunload, focus).
   // --------------------------------------------------------------------------
-  const pendingRef = useRef<CanvasOp[]>([]);
-  const timerRef = useRef<number | null>(null);
-  const retriedRef = useRef(false);
-
-  // The retry path re-schedules itself through the named function
-  // expression inside useCallback, so the callback can always reference
-  // itself.
-  const flush = useCallback(
-    async function flush() {
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      const batch = pendingRef.current;
-      if (batch.length === 0) {
-        setSaveStatus("saved");
-        return;
-      }
-      pendingRef.current = [];
-      setSaveStatus("saving");
+  const sendOps = useCallback(
+    async (batch: CanvasOp[]) => {
       const result = await applyCanvasOpsAction(payload.id, batch);
       if ("rev" in result) {
-        stateRef.current = { ...stateRef.current, rev: result.rev };
-        retriedRef.current = false;
-        setSaveStatus("saved");
-        setSaveNotice(null);
-        return;
+        // The server skipped op targets (usually: another leader removed a
+        // card an undo touches, spec 6.4) — say so in plain language.
+        if (
+          result.skipped > 0 &&
+          undoTagsRef.current !== null &&
+          batch.some((op) => undoTagsRef.current!.has(op.id))
+        ) {
+          setToast(
+            "Some changes could not be undone because someone else changed this map.",
+          );
+        }
+        undoTagsRef.current = null;
+        return { ok: true, rev: result.rev } as const;
       }
       console.error("canvas save failed:", result.error);
       // The server already mapped this to plain language (errors.ts): "This
       // map is full…", "That content belongs to another course…", etc.
       setSaveNotice(result.error);
-      // Put the batch back and retry once quietly; a second failure shows the
-      // retry chip (Could not save — Try again).
-      pendingRef.current = [...batch, ...pendingRef.current];
-      if (result.refetch || retriedRef.current) {
-        retriedRef.current = true;
-        setSaveStatus("error");
-        return;
-      }
-      retriedRef.current = true;
-      window.setTimeout(() => void flush(), 2500);
+      return {
+        ok: false,
+        error: result.error,
+        refetch: result.refetch,
+      } as const;
     },
     [payload.id],
   );
+
+  // The server's accepted revision (spec 6.4); applied outside render.
+  const applyServerRev = useCallback((rev: number) => {
+    stateRef.current = { ...stateRef.current, rev };
+    setSaveNotice(null);
+  }, []);
+
+  // The queue lives in a ref and is created on first use (a hook initializer
+  // or a sync mount-effect setState cannot reach refs under the React
+  // compiler rules). Every caller is event- or effect-driven — exactly where
+  // refs and side effects are allowed.
+  const queueRef = useRef<SaveQueue | null>(null);
+  const getQueue = useCallback(() => {
+    if (queueRef.current === null) {
+      queueRef.current = new SaveQueue({
+        send: sendOps,
+        onRev: applyServerRev,
+        schedule: (fn, ms) => window.setTimeout(fn, ms),
+        cancel: (handle) => window.clearTimeout(handle as number),
+        now: () => Date.now(),
+      });
+    }
+    return queueRef.current;
+  }, [sendOps, applyServerRev]);
+
+  // Chip states come from the queue (Saved / Saving… / Offline / error).
+  useEffect(() => {
+    const queue = getQueue();
+    return queue.subscribe((status) => setSaveStatus(status));
+  }, [getQueue]);
 
   const queueOps = useCallback(
     (ops: readonly CanvasOp[]) => {
       if (ops.length === 0) return;
       stateRef.current = applyOps(stateRef.current, ops);
-      pendingRef.current.push(...ops);
-      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-      timerRef.current = window.setTimeout(() => {
-        timerRef.current = null;
-        void flush();
-      }, 800);
+      getQueue().queue(ops);
     },
-    [flush],
+    [getQueue],
   );
+
+  // --------------------------------------------------------------------------
+  // Undo/redo history (spec 6.4)
+  // --------------------------------------------------------------------------
+  const syncHistoryFlags = useCallback(() => {
+    setCanUndo(historyRef.current.undo.length > 0);
+    setCanRedo(historyRef.current.redo.length > 0);
+  }, []);
+
+  /**
+   * One user action: pushed onto the undo stack as a single entry (drag,
+   * group move, recolour, delete…), then applied + queued like any other
+   * change. Own actions only (spec: red stack clears on a new action).
+   */
+  const commit = useCallback(
+    (ops: readonly CanvasOp[]) => {
+      if (ops.length === 0) return;
+      const inverse = invertOps(stateRef.current, ops);
+      historyRef.current = recordHistory(
+        historyRef.current,
+        ops,
+        inverse,
+        Date.now(),
+      );
+      syncHistoryFlags();
+      queueOps(ops);
+      syncOps(ops);
+    },
+    [queueOps, syncOps, syncHistoryFlags],
+  );
+
+  const undo = useCallback(() => {
+    const popped = popUndo(historyRef.current);
+    if (!popped) return;
+    historyRef.current = pushRedo(popped.after, popped.entry);
+    undoTagsRef.current = new Set(popped.entry.inverse.map((op) => op.id));
+    syncHistoryFlags();
+    queueOps(popped.entry.inverse);
+    syncOps(popped.entry.inverse);
+  }, [queueOps, syncOps, syncHistoryFlags]);
+
+  const redo = useCallback(() => {
+    const popped = popRedo(historyRef.current);
+    if (!popped) return;
+    historyRef.current = pushUndo(popped.after, popped.entry);
+    syncHistoryFlags();
+    queueOps(popped.entry.forward);
+    syncOps(popped.entry.forward);
+  }, [queueOps, syncOps, syncHistoryFlags]);
 
   // --------------------------------------------------------------------------
   // Interaction handlers
@@ -346,19 +432,11 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         changed = true;
       }
       if (!changed) return;
-      // Snap the visual position to match (React Flow kept the unsnapped one).
-      if (change.x !== undefined || change.y !== undefined) {
-        setNodes((current) =>
-          current.map((existing) =>
-            existing.id === node.id
-              ? { ...existing, position: { x, y } }
-              : existing,
-          ),
-        );
-      }
-      queueOps([change]);
+      // One history entry for the whole move/resize; syncOps Snapped the
+      // visual position to match (React Flow kept the unsnapped one).
+      commit([change]);
     },
-    [queueOps, setNodes],
+    [commit],
   );
 
   const selectedCardIds = useMemo(
@@ -372,50 +450,43 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   );
 
   // --------------------------------------------------------------------------
-  // Remove from map + Undo toast
+  // Remove from map + Undo toast (history-driven, spec 6.4)
   // --------------------------------------------------------------------------
-  const removeCard = useCallback(
-    (cardId: string) => {
-      const before = stateRef.current;
-      const ops: CanvasOp[] = [{ op: "node.delete", id: cardId }];
-      lastDeleteRef.current = invertOps(before, ops);
-      queueOps(ops);
-      syncOps(ops);
-      setCanUndo(true);
-      setToast("Removed from map");
+  const removeCards = useCallback(
+    (cardIds: readonly string[]) => {
+      const ids = [...new Set(cardIds)].filter(
+        (id) => id in stateRef.current.cards,
+      );
+      if (ids.length === 0) return;
+      commit(ids.map((id): CanvasOp => ({ op: "node.delete", id })));
+      const one = ids.length === 1;
+      const text = one ? "Removed from map" : `${ids.length} cards removed`;
+      setToast(text);
       window.setTimeout(
-        () =>
-          setToast((current) =>
-            current === "Removed from map" ? null : current,
-          ),
+        () => setToast((current) => (current === text ? null : current)),
         6000,
       );
     },
-    [queueOps, syncOps],
+    [commit],
   );
 
-  const undoLastDelete = useCallback(() => {
-    const inverse = lastDeleteRef.current;
-    if (!inverse) return;
-    lastDeleteRef.current = null;
-    setCanUndo(false);
-    queueOps(inverse);
-    syncOps(inverse);
-  }, [queueOps, syncOps]);
+  const removeCard = useCallback(
+    (cardId: string) => removeCards([cardId]),
+    [removeCards],
+  );
 
   const recolourSelected = useCallback(
     (color: string | null) => {
-      for (const id of selectedCardIds) {
-        const op: CanvasOp = {
-          op: "node.update",
-          id,
-          color: (color as CanvasCard["color"]) ?? null,
-        };
-        queueOps([op]);
-        syncOps([op]);
-      }
+      if (selectedCardIds.length === 0) return;
+      // The whole recolour is ONE user action (one history entry).
+      const ops: CanvasOp[] = selectedCardIds.map((id): CanvasOp => ({
+        op: "node.update",
+        id,
+        color: (color as CanvasCard["color"]) ?? null,
+      }));
+      commit(ops);
     },
-    [queueOps, syncOps, selectedCardIds],
+    [commit, selectedCardIds],
   );
 
   // --------------------------------------------------------------------------
@@ -445,10 +516,9 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         height: size.height,
         ...seed,
       } as CanvasOp;
-      queueOps([op]);
-      syncOps([op]);
+      commit([op]);
     },
-    [queueOps, syncOps, nodes.length],
+    [commit, nodes.length],
   );
 
   // Pickers: notes/files of this course loaded through server actions when
@@ -511,11 +581,106 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         from_side: fromSide,
         to_side: toSide,
       };
-      queueOps([op]);
-      syncOps([op]);
+      commit([op]);
     },
-    [queueOps, syncOps],
+    [commit],
   );
+
+  // --------------------------------------------------------------------------
+  // Browser glue for the save queue and the shortcuts (spec 6.3 + 6.4)
+  // --------------------------------------------------------------------------
+  useEffect(() => {
+    const queue = getQueue();
+    queue.setOnline(navigator.onLine);
+    const online = () => queue.setOnline(true);
+    const offline = () => queue.setOnline(false);
+    window.addEventListener("online", online);
+    window.addEventListener("offline", offline);
+    return () => {
+      window.removeEventListener("online", online);
+      window.removeEventListener("offline", offline);
+    };
+  }, [getQueue]);
+
+  // Flush immediately on blur / when the tab goes away; warn before an
+  // unload only while the queue still holds unsaved changes (spec 6.4).
+  useEffect(() => {
+    const queue = getQueue();
+    const flushOnBlur = () => queue.flushNow();
+    const flushOnHidden = () => {
+      if (!document.hidden) return;
+      queue.flushNow();
+    };
+    const warnUnload = (event: BeforeUnloadEvent) => {
+      if (queue.hasPending()) event.preventDefault();
+    };
+    window.addEventListener("blur", flushOnBlur);
+    document.addEventListener("visibilitychange", flushOnHidden);
+    window.addEventListener("beforeunload", warnUnload);
+    return () => {
+      window.removeEventListener("blur", flushOnBlur);
+      document.removeEventListener("visibilitychange", flushOnHidden);
+      window.removeEventListener("beforeunload", warnUnload);
+    };
+  }, [getQueue]);
+
+  // Another leader edited the map while we were away (spec 6.4): only when
+  // our own queue is empty, compare the cheap server rev; if it moved,
+  // refetch. M13 replaces this with live updates.
+  useEffect(() => {
+    const queue = getQueue();
+    const checkRev = () => {
+      if (document.hidden || queue.hasPending()) return;
+      void getCanvasRevAction(payload.id).then((serverRev) => {
+        if (
+          serverRev !== null &&
+          serverRev !== stateRef.current.rev &&
+          !queue.hasPending()
+        ) {
+          router.refresh();
+        }
+      });
+    };
+    window.addEventListener("focus", checkRev);
+    document.addEventListener("visibilitychange", checkRev);
+    return () => {
+      window.removeEventListener("focus", checkRev);
+      document.removeEventListener("visibilitychange", checkRev);
+    };
+  }, [getQueue, payload.id, router]);
+
+  // Undo, redo and Ctrl+S are document-level; the rest of the 6.3 table is
+  // wired with the interactions slice. Shortcuts never fire while a text
+  // field, contenteditable or a palette input has focus (spec 6.3).
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target)) return;
+      const mod = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+      if (mod && !event.shiftKey && key === "z") {
+        event.preventDefault();
+        undo();
+        return;
+      }
+      if (
+        (mod && event.shiftKey && key === "z") ||
+        (mod && !event.shiftKey && key === "y")
+      ) {
+        event.preventDefault();
+        redo();
+        return;
+      }
+      if (mod && key === "s") {
+        // Ctrl+S saves a named version (spec 6.3); flush the queue first so
+        // the version contains the unsaved changes.
+        event.preventDefault();
+        getQueue().flushNow();
+        setVersionsOpen(true);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [getQueue, undo, redo]);
 
   const contextValue = useMemo<CanvasContextValue>(
     () => ({ queueOps, removeCard, recolourCard: recolourSelected }),
@@ -579,18 +744,18 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
       <Toolbar
         canEdit
         saveStatus={saveStatus}
-        onRetrySave={() => void flush()}
+        onRetrySave={() => getQueue().retry()}
         onAddText={() => addCard("text", { body: "Write here…" })}
         onAddNote={() => openPicker("note")}
         onAddFile={() => openPicker("file")}
         onAddGroup={() => addCard("group", { label: "New group" })}
-        onUndo={undoLastDelete}
+        onUndo={undo}
+        onRedo={redo}
         canUndo={canUndo}
+        canRedo={canRedo}
         selectedCardIds={selectedCardIds}
         onRecolour={recolourSelected}
-        onRemoveSelected={() => {
-          for (const id of selectedCardIds) removeCard(id);
-        }}
+        onRemoveSelected={() => removeCards(selectedCardIds)}
         legend={payload.legend}
         onOpenLegend={() => setLegendOpen(true)}
         onOpenVersions={() => setVersionsOpen(true)}
@@ -605,6 +770,17 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
           className="bg-destructive/10 text-destructive border-destructive/40 mx-2 rounded border px-2.5 py-1.5 text-xs font-semibold"
         >
           {saveNotice}
+        </p>
+      ) : null}
+
+      {saveStatus === "offline" ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className="mx-2 rounded border border-yellow-500/40 bg-yellow-500/10 px-2.5 py-1.5 text-xs font-semibold"
+        >
+          You are offline. Your changes are kept on this page until you are
+          back.
         </p>
       ) : null}
 
@@ -717,7 +893,7 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
           {canUndo ? (
             <button
               type="button"
-              onClick={undoLastDelete}
+              onClick={undo}
               className="text-destructive underline underline-offset-2"
             >
               Undo

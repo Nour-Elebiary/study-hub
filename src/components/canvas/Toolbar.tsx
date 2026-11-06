@@ -1,6 +1,7 @@
 "use client";
 
-import SaveStatusChip, { type SaveStatus } from "./SaveStatus";
+import SaveStatusChip from "./SaveStatus";
+import type { SaveStatus } from "@/lib/canvas/save-queue";
 import { CANVAS_COLORS } from "@/lib/canvas/schemas";
 
 /**
@@ -18,7 +19,9 @@ export type ToolbarProps = {
   onAddFile: () => void;
   onAddGroup: () => void;
   onUndo: () => void;
+  onRedo: () => void;
   canUndo: boolean;
+  canRedo: boolean;
   selectedCardIds: string[];
   onRecolour: (color: string | null) => void;
   onRemoveSelected: () => void;
@@ -52,6 +55,16 @@ export default function Toolbar(props: ToolbarProps) {
           className="rounded border px-2.5 py-1.5 text-xs font-semibold"
         >
           Undo
+        </button>
+      ) : null}
+
+      {props.canEdit && props.canRedo ? (
+        <button
+          type="button"
+          onClick={props.onRedo}
+          className="rounded border px-2.5 py-1.5 text-xs font-semibold"
+        >
+          Redo
         </button>
       ) : null}
 

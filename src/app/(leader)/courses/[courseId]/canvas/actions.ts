@@ -8,6 +8,7 @@ import { requireSession } from "@/lib/dal";
 import {
   applyCanvasOps,
   createCanvas,
+  getCanvasRev,
   getCourseTree,
   listCourseFiles,
   listCourseNotes,
@@ -458,6 +459,21 @@ export async function applyCanvasOpsAction(
     applied: result.data.applied,
     skipped: result.data.skipped,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Focus revision check (spec 6.4)
+// ---------------------------------------------------------------------------
+
+/**
+ * The cheap read the editor does when the window regains focus: if the
+ * server rev moved on while we were away, the whole map is refetched.
+ */
+export async function getCanvasRevAction(
+  canvasId: string,
+): Promise<number | null> {
+  await requireSession();
+  return getCanvasRev(canvasId);
 }
 
 // ---------------------------------------------------------------------------

@@ -293,6 +293,21 @@ export async function getCanvas(
   };
 }
 
+/**
+ * Only the canvas's revision counter (spec 6.4): the cheap read the editor
+ * makes on window focus to notice another leader's edits. RLS decides
+ * access exactly as in getCanvas.
+ */
+export async function getCanvasRev(canvasId: string): Promise<number | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("canvases")
+    .select("rev")
+    .eq("id", canvasId)
+    .maybeSingle<{ rev: number }>();
+  return data?.rev ?? null;
+}
+
 /** Bulk-resolves the note/file targets of the given cards (2 queries). */
 async function resolveTargets(
   supabase:
