@@ -17,6 +17,8 @@ export type ToolbarProps = {
   onAddText: () => void;
   onAddNote: () => void;
   onAddFile: () => void;
+  /** "Add file from computer" — the drag-drop pipeline with a picker. */
+  onAddUpload: () => void;
   onAddGroup: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -44,6 +46,10 @@ export default function Toolbar(props: ToolbarProps) {
           <AddButton label="Add text card" onClick={props.onAddText} />
           <AddButton label="Add note" onClick={props.onAddNote} />
           <AddButton label="Add file" onClick={props.onAddFile} />
+          <AddButton
+            label="Add file from computer"
+            onClick={props.onAddUpload}
+          />
           <AddButton label="Add group" onClick={props.onAddGroup} />
         </>
       ) : null}

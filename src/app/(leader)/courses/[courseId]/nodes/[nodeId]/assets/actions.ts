@@ -15,7 +15,8 @@ import {
 } from "@/lib/schemas";
 import { createClient } from "@/lib/supabase/server";
 
-export type AssetActionState = { error: string } | { ok: true } | null;
+export type AssetActionState =
+  { error: string } | { ok: true; assetId?: string } | null;
 
 function firstIssue(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Check the form.";
@@ -123,7 +124,7 @@ export async function registerUploadAction(
   });
 
   revalidatePath(`/courses/${parsed.data.course_id}`);
-  return { ok: true };
+  return { ok: true, assetId: asset.id };
 }
 
 /** Adds a Drive or web link instead of an oversized upload (spec section 6). */

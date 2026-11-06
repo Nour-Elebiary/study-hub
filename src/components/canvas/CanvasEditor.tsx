@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -60,6 +61,9 @@ import {
 import { GRID_SIZE, ZOOM_RANGE } from "@/lib/canvas/defaults";
 import type { CanvasCard, CanvasEdge, CanvasState } from "@/lib/canvas/types";
 import type { CanvasPayload, PickerFile, PickerNote } from "./payload";
+import { randomStoragePath, validateUpload } from "@/lib/file-allowlist";
+import { createBrowserSupabase } from "@/lib/supabase/browser";
+import { registerUploadAction } from "@/app/(leader)/courses/[courseId]/nodes/[nodeId]/assets/actions";
 import {
   applyCanvasOpsAction,
   getCanvasRevAction,
@@ -155,6 +159,18 @@ const ARROW_NUDGE = {
   arrowdown: [0, GRID_SIZE],
 } as const;
 
+/**
+ * One per-file progress chip for the drag-drop upload (spec 6.5 test d):
+ * every dropped file reports Checking / Uploading… / done in plain
+ * language; a failure never creates a card.
+ */
+type UploadChip = {
+  key: string;
+  name: string;
+  state: "working" | "done" | "error";
+  message: string;
+};
+
 function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   const router = useRouter();
 
@@ -199,6 +215,12 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     origin: { x: number; y: number };
     followers: Array<{ id: string; x: number; y: number }>;
   } | null>(null);
+  // Drag-drop upload (spec 6.5): per-file chips, drag highlight, and the
+  // hidden picker input behind the toolbar "Add file from computer".
+  const [uploads, setUploads] = useState<UploadChip[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+  const dragDepthRef = useRef(0);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
   // --------------------------------------------------------------------------
   // Visual sync: apply an op batch to the React Flow lists (adds, removals,
   // edits) so the optimistic state and the screen stay one thing.
@@ -1179,21 +1201,6 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     versionsOpen,
   ]);
 
-  // Ctrl/Cmd+V surfaces as a paste event, which can read the text; the
-  // internal card snapshot wins when the text matches, otherwise the text
-  // becomes a link or text card (spec 6.2). Image paste arrives with M10 §6.5.
-  useEffect(() => {
-    const onPaste = (event: ClipboardEvent) => {
-      if (isEditableTarget(event.target)) return;
-      const text = event.clipboardData?.getData("text/plain") ?? "";
-      if (!text) return;
-      event.preventDefault();
-      pasteFromClipboard(text);
-    };
-    document.addEventListener("paste", onPaste);
-    return () => document.removeEventListener("paste", onPaste);
-  }, [pasteFromClipboard]);
-
   /** Double-click on empty space adds a text card there (spec 6.2). */
   const onCanvasDoubleClick = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -1214,6 +1221,197 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     },
     [addCard],
   );
+
+  // --------------------------------------------------------------------------
+  // Drag-drop and paste upload (spec 6.5): the M6 upload pipeline is reused
+  // end to end — validateUpload, Storage under "{course_id}/…", then the
+  // existing registerUploadAction. One file card per upload, each further
+  // file offset by 24 px; per-file progress chips; a failure adds no card.
+  // --------------------------------------------------------------------------
+  const updateChip = useCallback((key: string, patch: Partial<UploadChip>) => {
+    setUploads((current) =>
+      current.map((chip) => (chip.key === key ? { ...chip, ...patch } : chip)),
+    );
+  }, []);
+
+  /** Chips leave quietly once their message has been seen. */
+  const dropChipLater = useCallback((key: string, delay: number) => {
+    window.setTimeout(() => {
+      setUploads((current) => current.filter((chip) => chip.key !== key));
+    }, delay);
+  }, []);
+
+  const uploadFiles = useCallback(
+    async (fileList: readonly File[], at?: { x: number; y: number }) => {
+      const flow = flowRef.current;
+      const origin =
+        at ??
+        (flow
+          ? flow.screenToFlowPosition({
+              x: window.innerWidth / 2,
+              y: window.innerHeight / 2,
+            })
+          : { x: 40, y: 40 });
+      const files = Array.from(fileList).slice(0, 10);
+      const maxBytes = payload.maxFileMb * 1024 * 1024;
+      for (const [index, file] of files.entries()) {
+        const key = `${Date.now()}-${index}`;
+        const cardAt =
+          index === 0
+            ? { x: origin.x, y: origin.y }
+            : { x: origin.x + index * 24, y: origin.y + index * 24 };
+        const fail = (message: string) => {
+          updateChip(key, { state: "error", message });
+          dropChipLater(key, 10000);
+        };
+        setUploads((current) => [
+          ...current,
+          { key, name: file.name, state: "working", message: "Checking…" },
+        ]);
+        if (file.size > maxBytes) {
+          fail(
+            `That file is ${(file.size / (1024 * 1024)).toFixed(1)} MB — over the ${payload.maxFileMb} MB limit.`,
+          );
+          continue;
+        }
+        const check = validateUpload(
+          file.name,
+          new Uint8Array(await file.arrayBuffer()),
+        );
+        if (!check.ok) {
+          fail(check.reason);
+          continue;
+        }
+        updateChip(key, { message: "Uploading…" });
+        const path = randomStoragePath(payload.courseId, file.name);
+        const supabase = createBrowserSupabase();
+        const { error: uploadError } = await supabase.storage
+          .from("assets")
+          .upload(path, file, { contentType: check.mime });
+        if (uploadError) {
+          fail("The upload failed. Check your connection and try again.");
+          continue;
+        }
+        updateChip(key, { message: "Saving…" });
+        const formData = new FormData();
+        formData.set("course_id", payload.courseId);
+        // Canvas file cards attach to the course, not to one note.
+        formData.set("node_id", "");
+        formData.set("kind", check.kind);
+        formData.set("path_or_url", path);
+        formData.set("title", file.name.slice(0, 200));
+        formData.set("mime", check.mime);
+        formData.set("size_bytes", String(file.size));
+        const result = await registerUploadAction(null, formData);
+        if (result && "error" in result && result.error) {
+          fail(result.error);
+          continue;
+        }
+        const assetId = result && "ok" in result ? result.assetId : null;
+        if (!assetId) {
+          fail("The upload was not allowed. Refresh and try again.");
+          continue;
+        }
+        // Same optimistic hand-off the picker uses: the card resolves the
+        // server truth (visibility, download flag) on the next page load.
+        filesRef.current = {
+          ...filesRef.current,
+          [assetId]: {
+            id: assetId,
+            name: file.name,
+            kind: check.kind,
+            mime: check.mime,
+            bytes: file.size,
+            visible: true,
+            downloadable: false,
+            pathOrUrl: path,
+          },
+        };
+        addCard(
+          "file",
+          { asset_id: assetId, label: file.name.slice(0, 200) },
+          cardAt,
+        );
+        updateChip(key, { state: "done", message: "Added to the map" });
+        dropChipLater(key, 4000);
+      }
+    },
+    [addCard, dropChipLater, payload.courseId, payload.maxFileMb, updateChip],
+  );
+
+  /** Only real files light up the drop highlight and accept a drop. */
+  const hasDragFiles = (event: {
+    dataTransfer: { types: readonly string[] };
+  }): boolean => event.dataTransfer.types.includes("Files");
+
+  const onCanvasDragEnter = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!hasDragFiles(event)) return;
+      event.preventDefault();
+      dragDepthRef.current += 1;
+      setDragOver(true);
+    },
+    [],
+  );
+
+  const onCanvasDragOver = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!hasDragFiles(event)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    },
+    [],
+  );
+
+  const onCanvasDragLeave = useCallback(() => {
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setDragOver(false);
+  }, []);
+
+  const onCanvasDrop = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!hasDragFiles(event)) return;
+      event.preventDefault();
+      dragDepthRef.current = 0;
+      setDragOver(false);
+      const files = Array.from(event.dataTransfer.files);
+      if (files.length === 0) return;
+      const flow = flowRef.current;
+      const at = flow
+        ? flow.screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY,
+          })
+        : undefined;
+      void uploadFiles(files, at);
+    },
+    [uploadFiles],
+  );
+
+  // Ctrl/Cmd+V surfaces as a paste event, which can read the payload; the
+  // internal card snapshot wins when the text matches, plain text / a URL
+  // becomes a card, and an image goes through the upload pipeline (spec 6.2).
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      if (isEditableTarget(event.target)) return;
+      const images = event.clipboardData
+        ? Array.from(event.clipboardData.files).filter((file) =>
+            file.type.startsWith("image/"),
+          )
+        : [];
+      if (images.length > 0) {
+        event.preventDefault();
+        void uploadFiles(images);
+        return;
+      }
+      const text = event.clipboardData?.getData("text/plain") ?? "";
+      if (!text) return;
+      event.preventDefault();
+      pasteFromClipboard(text);
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [pasteFromClipboard, uploadFiles]);
 
   const contextValue = useMemo<CanvasContextValue>(
     () => ({
@@ -1286,6 +1484,7 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         onAddText={() => addCard("text", { body: "Write here…" })}
         onAddNote={() => openPicker("note")}
         onAddFile={() => openPicker("file")}
+        onAddUpload={() => uploadInputRef.current?.click()}
         onAddGroup={() => addCard("group", { label: "New group" })}
         onUndo={undo}
         onRedo={redo}
@@ -1322,9 +1521,51 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         </p>
       ) : null}
 
+      {uploads.length > 0 ? (
+        // Drag-drop upload progress (spec 6.5: a chip per file, plain
+        // language on failure).
+        <ul aria-live="polite" className="mx-2 grid gap-1">
+          {uploads.map((chip) => (
+            <li
+              key={chip.key}
+              className={[
+                "flex items-center gap-2 rounded border px-2.5 py-1.5 text-xs font-semibold",
+                chip.state === "error"
+                  ? "border-destructive/40 bg-destructive/10 text-destructive"
+                  : "border-border bg-background",
+              ].join(" ")}
+            >
+              <span aria-hidden="true">
+                {chip.state === "done"
+                  ? "✓"
+                  : chip.state === "error"
+                    ? "⚠"
+                    : "⏳"}
+              </span>
+              <span className="max-w-60 truncate" dir="auto">
+                {chip.name}
+              </span>
+              <span
+                className={
+                  chip.state === "error" ? "" : "text-muted-foreground"
+                }
+              >
+                {chip.message}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       <div
-        className="h-[calc(100dvh-9rem)] w-full"
+        className={`h-[calc(100dvh-9rem)] w-full rounded-lg ${
+          dragOver ? "ring-ring ring-2 ring-offset-2" : ""
+        }`}
         onDoubleClick={onCanvasDoubleClick}
+        onDragEnter={onCanvasDragEnter}
+        onDragOver={onCanvasDragOver}
+        onDragLeave={onCanvasDragLeave}
+        onDrop={onCanvasDrop}
       >
         <ReactFlow
           onInit={(flow) => {
@@ -1446,6 +1687,22 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
           ) : null}
         </div>
       ) : null}
+
+      <input
+        ref={uploadInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={(event) => {
+          const files = event.target.files;
+          if (files && files.length > 0) {
+            void uploadFiles(Array.from(files));
+          }
+          event.target.value = "";
+        }}
+      />
     </CanvasProvider>
   );
 }

@@ -55,6 +55,11 @@ export type CanvasPayload = {
   published: boolean;
   legend: Record<string, string>;
   viewport: { x: number; y: number; zoom: number };
+  /**
+   * Biggest upload size in MB, from the `settings` table (constitution rule
+   * 8) — the drag-drop upload gate (spec 6.5) needs it in the browser.
+   */
+  maxFileMb: number;
   cards: CanvasCard[];
   edges: CanvasEdge[];
   notes: Record<string, NoteTarget>;

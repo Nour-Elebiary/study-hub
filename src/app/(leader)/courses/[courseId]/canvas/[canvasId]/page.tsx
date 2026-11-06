@@ -6,6 +6,7 @@ import type { CanvasPayload } from "@/components/canvas/payload";
 import { getCanvas } from "@/lib/dal-canvas";
 import { requireSession } from "@/lib/dal";
 import { getMembership } from "@/lib/course-access";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Canvas map" };
 
@@ -30,6 +31,16 @@ export default async function CanvasEditorPage({
   const isAdmin = session.profile.global_role === "admin";
   if (!membership && !isAdmin) notFound();
 
+  // The upload size limit lives in settings (constitution rule 8), not in
+  // code — the drag-drop upload gate in the editor needs it (spec 6.5).
+  const supabase = await createClient();
+  const { data: limitRow } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "max_file_mb")
+    .maybeSingle();
+  const maxFileMb = typeof limitRow?.value === "number" ? limitRow.value : 10;
+
   const payload: CanvasPayload = {
     id: detail.canvas.id,
     courseId: detail.canvas.courseId,
@@ -39,6 +50,7 @@ export default async function CanvasEditorPage({
     published: detail.canvas.published,
     legend: detail.canvas.legend,
     viewport: detail.canvas.viewport,
+    maxFileMb,
     cards: detail.cards,
     edges: detail.edges,
     notes: detail.notes,
