@@ -61,6 +61,8 @@ import {
 import { GRID_SIZE, ZOOM_RANGE } from "@/lib/canvas/defaults";
 import type { CanvasCard, CanvasEdge, CanvasState } from "@/lib/canvas/types";
 import type { CanvasPayload, PickerFile, PickerNote } from "./payload";
+import { SidePane, type PaneEntry } from "./SidePane";
+import { getNoteBodyAction } from "@/app/(leader)/courses/[courseId]/canvas/actions";
 import { randomStoragePath, validateUpload } from "@/lib/file-allowlist";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { registerUploadAction } from "@/app/(leader)/courses/[courseId]/nodes/[nodeId]/assets/actions";
@@ -171,6 +173,12 @@ type UploadChip = {
   message: string;
 };
 
+/** Up to 5 open tabs (spec 6.6); a sixth silently replaces the oldest. */
+function capPane(current: readonly PaneEntry[], entry: PaneEntry): PaneEntry[] {
+  const next = [...current.filter((e) => e.cardId !== entry.cardId), entry];
+  return next.length > 5 ? next.slice(next.length - 5) : next;
+}
+
 function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   const router = useRouter();
 
@@ -221,6 +229,16 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   const [dragOver, setDragOver] = useState(false);
   const dragDepthRef = useRef(0);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  // Side pane (spec 6.6): open card tabs + the active one. Note bodies are
+  // cached per note id, so switching tabs does not refetch.
+  const [paneEntries, setPaneEntries] = useState<PaneEntry[]>([]);
+  const [paneActive, setPaneActive] = useState<string | null>(null);
+  const noteBodyRef = useRef(
+    new Map<
+      string,
+      { body: string; canWrite: boolean; canBreakLock: boolean; title: string }
+    >(),
+  );
   // --------------------------------------------------------------------------
   // Visual sync: apply an op batch to the React Flow lists (adds, removals,
   // edits) so the optimistic state and the screen stay one thing.
@@ -999,6 +1017,146 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   );
 
   // --------------------------------------------------------------------------
+  // Side pane (spec 6.6): clicking a note or file card (or pressing Enter on
+  // a focused one) opens it on the right. Note bodies load through the
+  // server action once and are cached per note id.
+  // --------------------------------------------------------------------------
+  const activatePane = useCallback((cardId: string) => {
+    setPaneActive(cardId);
+  }, []);
+
+  const loadNoteBody = useCallback(
+    async (cardId: string, nodeId: string) => {
+      const result = await getNoteBodyAction(payload.id, nodeId);
+      if ("error" in result) {
+        setPaneEntries((current) =>
+          current.map((entry) =>
+            entry.cardId === cardId && entry.type === "note"
+              ? { ...entry, loading: false, error: result.error }
+              : entry,
+          ),
+        );
+        return;
+      }
+      noteBodyRef.current.set(nodeId, {
+        body: result.body,
+        canWrite: result.canWrite,
+        canBreakLock: result.canBreakLock,
+        title: result.title,
+      });
+      setPaneEntries((current) =>
+        current.map((entry) =>
+          entry.cardId === cardId && entry.type === "note"
+            ? {
+                ...entry,
+                loading: false,
+                title: result.title,
+                body: result.body,
+                error: null,
+                canWrite: result.canWrite,
+                canBreakLock: result.canBreakLock,
+              }
+            : entry,
+        ),
+      );
+    },
+    [payload.id],
+  );
+
+  const openPaneFor = useCallback(
+    (cardId: string) => {
+      const card = stateRef.current.cards[cardId];
+      if (!card || !payload.currentUserId) return;
+      setPaneActive(cardId);
+      if (paneEntries.some((entry) => entry.cardId === cardId)) return;
+      if (card.kind === "file" && card.assetId) {
+        const assetId = card.assetId;
+        const file = filesRef.current[assetId];
+        if (!file) return;
+        setPaneEntries((current) =>
+          capPane(current, {
+            type: "file",
+            cardId,
+            title: file.name,
+            loading: false,
+            file,
+          }),
+        );
+        return;
+      }
+      if (card.kind === "note" && card.nodeId) {
+        const nodeId = card.nodeId;
+        const cached = noteBodyRef.current.get(nodeId);
+        if (cached) {
+          setPaneEntries((current) =>
+            capPane(current, {
+              type: "note",
+              cardId,
+              title: cached.title,
+              loading: false,
+              body: cached.body,
+              error: null,
+              nodeId,
+              canWrite: cached.canWrite,
+              canBreakLock: cached.canBreakLock,
+            }),
+          );
+          return;
+        }
+        setPaneEntries((current) =>
+          capPane(current, {
+            type: "note",
+            cardId,
+            title: notesRef.current[nodeId]?.title ?? "Note",
+            loading: true,
+            body: null,
+            error: null,
+            nodeId,
+            canWrite: false,
+            canBreakLock: false,
+          }),
+        );
+        void loadNoteBody(cardId, nodeId);
+      }
+    },
+    [loadNoteBody, paneEntries, payload.currentUserId],
+  );
+
+  /** Closing returns focus to the card (spec 6.6, plain tab order). */
+  const closePane = useCallback(
+    (cardId: string | null) => {
+      const focusId = cardId ?? paneActive;
+      if (cardId === null) {
+        setPaneEntries([]);
+      } else {
+        const remaining = paneEntries.filter(
+          (entry) => entry.cardId !== cardId,
+        );
+        setPaneEntries(remaining);
+        if (paneActive === cardId) {
+          setPaneActive(remaining[remaining.length - 1]?.cardId ?? null);
+        }
+      }
+      // React Flow node wrappers carry data-id; focus back to the card.
+      const el =
+        focusId !== null
+          ? document.querySelector(`[data-id="${focusId}"]`)
+          : null;
+      if (el instanceof HTMLElement) el.focus();
+    },
+    [paneActive, paneEntries],
+  );
+
+  /** Clicking a note or file card opens it in the pane (spec 6.6). */
+  const onNodeClick = useCallback(
+    (_event: ReactMouseEvent, node: RfNode) => {
+      const card = node.data.card;
+      if (card.kind === "note" || card.kind === "file") openPaneFor(card.id);
+    },
+    [openPaneFor],
+  );
+
+  // --------------------------------------------------------------------------
   // Browser glue for the save queue and the shortcuts (spec 6.3 + 6.4)
   // --------------------------------------------------------------------------
   useEffect(() => {
@@ -1128,9 +1286,27 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         tabTo(event.shiftKey ? -1 : 1);
         return;
       }
+      if (
+        key === "enter" &&
+        selectedCardIds.length > 0 &&
+        payload.currentUserId !== null
+      ) {
+        // Enter on a focused card opens the side pane (spec 6.6) — unless
+        // the focus sits on a button or link, which keeps its own meaning.
+        const skipped =
+          event.target instanceof HTMLElement &&
+          event.target.closest("button, a, [role='button']") !== null;
+        if (!skipped) {
+          event.preventDefault();
+          openPaneFor(selectedCardIds[selectedCardIds.length - 1]!);
+        }
+        return;
+      }
       if (key === "escape") {
-        // Close menu, pane, selection — in that order (spec 6.3).
-        if (picker !== null) {
+        // Close pane, menu, sheet, selection (spec 6.3 / 6.6).
+        if (paneActive !== null) {
+          closePane(null);
+        } else if (picker !== null) {
           closePicker();
         } else if (legendOpen) {
           setLegendOpen(false);
@@ -1185,6 +1361,7 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     copySelected,
     duplicateSelected,
     clearSelection,
+    closePane,
     focusConnected,
     getQueue,
     groupSelected,
@@ -1192,6 +1369,9 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     legendOpen,
     picker,
     nudgeSelected,
+    openPaneFor,
+    paneActive,
+    payload.currentUserId,
     redo,
     removeCards,
     selectedCardIds,
@@ -1557,50 +1737,66 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         </ul>
       ) : null}
 
-      <div
-        className={`h-[calc(100dvh-9rem)] w-full rounded-lg ${
-          dragOver ? "ring-ring ring-2 ring-offset-2" : ""
-        }`}
-        onDoubleClick={onCanvasDoubleClick}
-        onDragEnter={onCanvasDragEnter}
-        onDragOver={onCanvasDragOver}
-        onDragLeave={onCanvasDragLeave}
-        onDrop={onCanvasDrop}
-      >
-        <ReactFlow
-          onInit={(flow) => {
-            flowRef.current = flow;
-          }}
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChangeAll}
-          onEdgesChange={onEdgesChange}
-          onNodeDragStart={onNodeDragStart}
-          onNodeDragStop={onNodeDragStop}
-          onConnect={onConnect}
-          nodeTypes={canvasNodeTypes}
-          edgeTypes={canvasEdgeTypes}
-          connectionMode={ConnectionMode.Loose}
-          onlyRenderVisibleElements
-          // Spec 6.2 "Select many": Shift + drag a box, Ctrl + click adds.
-          selectionKeyCode="Shift"
-          multiSelectionKeyCode="Control"
-          minZoom={ZOOM_RANGE.min}
-          maxZoom={ZOOM_RANGE.max}
-          defaultViewport={{
-            x: payload.viewport.x,
-            y: payload.viewport.y,
-            zoom: Math.min(
-              ZOOM_RANGE.max,
-              Math.max(ZOOM_RANGE.min, payload.viewport.zoom),
-            ),
-          }}
-          deleteKeyCode={null}
-          selectNodesOnDrag={false}
-          proOptions={{ hideAttribution: false }}
+      <div className="flex h-[calc(100dvh-9rem)] w-full">
+        <div
+          className={`min-w-0 flex-1 rounded-lg ${
+            dragOver ? "ring-ring ring-2 ring-offset-2" : ""
+          }`}
+          onDoubleClick={onCanvasDoubleClick}
+          onDragEnter={onCanvasDragEnter}
+          onDragOver={onCanvasDragOver}
+          onDragLeave={onCanvasDragLeave}
+          onDrop={onCanvasDrop}
         >
-          <Background gap={GRID_SIZE} />
-        </ReactFlow>
+          <ReactFlow
+            onInit={(flow) => {
+              flowRef.current = flow;
+            }}
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChangeAll}
+            onEdgesChange={onEdgesChange}
+            onNodeDragStart={onNodeDragStart}
+            onNodeDragStop={onNodeDragStop}
+            onNodeClick={onNodeClick}
+            onConnect={onConnect}
+            nodeTypes={canvasNodeTypes}
+            edgeTypes={canvasEdgeTypes}
+            connectionMode={ConnectionMode.Loose}
+            onlyRenderVisibleElements
+            // Spec 6.2 "Select many": Shift + drag a box, Ctrl + click adds.
+            selectionKeyCode="Shift"
+            multiSelectionKeyCode="Control"
+            minZoom={ZOOM_RANGE.min}
+            maxZoom={ZOOM_RANGE.max}
+            defaultViewport={{
+              x: payload.viewport.x,
+              y: payload.viewport.y,
+              zoom: Math.min(
+                ZOOM_RANGE.max,
+                Math.max(ZOOM_RANGE.min, payload.viewport.zoom),
+              ),
+            }}
+            deleteKeyCode={null}
+            selectNodesOnDrag={false}
+            proOptions={{ hideAttribution: false }}
+          >
+            <Background gap={GRID_SIZE} />
+          </ReactFlow>
+        </div>
+
+        {paneActive !== null &&
+        paneEntries.length > 0 &&
+        payload.currentUserId !== null ? (
+          <SidePane
+            entries={paneEntries}
+            activeId={paneActive}
+            courseId={payload.courseId}
+            userId={payload.currentUserId}
+            onClose={() => closePane(null)}
+            onActivate={activatePane}
+          />
+        ) : null}
       </div>
 
       <PickerDialog

@@ -60,6 +60,11 @@ export type CanvasPayload = {
    * 8) — the drag-drop upload gate (spec 6.5) needs it in the browser.
    */
   maxFileMb: number;
+  /**
+   * The signed-in leader's id (used by the side pane's note editor locks,
+   * spec 6.6). Null in the student viewer, which has no side pane.
+   */
+  currentUserId: string | null;
   cards: CanvasCard[];
   edges: CanvasEdge[];
   notes: Record<string, NoteTarget>;

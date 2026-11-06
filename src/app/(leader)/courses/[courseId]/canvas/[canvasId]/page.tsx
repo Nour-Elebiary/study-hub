@@ -51,6 +51,7 @@ export default async function CanvasEditorPage({
     legend: detail.canvas.legend,
     viewport: detail.canvas.viewport,
     maxFileMb,
+    currentUserId: session.userId,
     cards: detail.cards,
     edges: detail.edges,
     notes: detail.notes,
