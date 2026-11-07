@@ -23,6 +23,11 @@ export type CanvasContextValue = {
    * `node.update` (student_visible) per press, undoable like any action.
    */
   toggleStudentVisible: (cardId: string, visible: boolean) => void;
+  /**
+   * Long-press / right-click opens the card context menu (spec 6.8);
+   * the viewer has no menu and supplies an empty implementation.
+   */
+  openCardMenu: (cardId: string) => void;
 };
 
 const noop: CanvasContextValue = {
@@ -30,6 +35,7 @@ const noop: CanvasContextValue = {
   removeCard: () => {},
   recolourCard: () => {},
   toggleStudentVisible: () => {},
+  openCardMenu: () => {},
 };
 
 export const CanvasContext = createContext<CanvasContextValue>(noop);

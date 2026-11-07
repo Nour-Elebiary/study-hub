@@ -32,6 +32,7 @@ import {
   type CanvasFlowEdge,
 } from "./CanvasEdge";
 import Toolbar from "./Toolbar";
+import MobileToolbar from "./MobileToolbar";
 import LegendEditor from "./LegendEditor";
 import VersionsSheet from "./VersionsSheet";
 import { CommandPalette, type PaletteCard } from "./CommandPalette";
@@ -56,6 +57,7 @@ import {
 } from "@/lib/canvas/geometry";
 import {
   CARD_KINDS,
+  CANVAS_COLORS,
   SIDES,
   type CanvasOp,
   type Side,
@@ -206,6 +208,13 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   // The command palette (spec 6.7) — Ctrl/Cmd+K or the toolbar Search
   // button; its own input keeps its typing (isEditableTarget early-out).
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Connect mode (spec 6.8): the phone toolbar's Connect button makes
+  // touch linking possible — first tap picks the source card, the second
+  // tap links it. Keyboard uses handles instead (spec 6.2).
+  const [connectMode, setConnectMode] = useState(false);
+  const [connectFrom, setConnectFrom] = useState<string | null>(null);
+  // Long-press / right-click opens one card's context menu (spec 6.8).
+  const [cardMenuId, setCardMenuId] = useState<string | null>(null);
   const [published, setPublished] = useState(payload.published);
   const [savingPublish, setSavingPublish] = useState(false);
   const [picker, setPicker] = useState<"note" | "file" | null>(null);
@@ -576,12 +585,47 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     );
   }, [setNodes]);
 
+  /** Long-press / right-click menu (spec 6.8): select + open in one go. */
+  const openCardMenu = useCallback(
+    (cardId: string) => {
+      setOneSelected(cardId);
+      setCardMenuId(cardId);
+    },
+    [setOneSelected],
+  );
+
   /** Brings a card into view after keyboard selection moves (spec 6.3). */
   const centerOn = useCallback((card: CanvasCard) => {
+    // Spec 6.9: no animated pan when the visitor prefers reduced motion.
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     flowRef.current?.setCenter(
       card.x + card.width / 2,
       card.y + card.height / 2,
-      { duration: 200 },
+      { duration: reduce ? 0 : 200 },
+    );
+  }, []);
+
+  /** Stores the flow instance the first time React Flow is ready. */
+  const handleFlowInit = useCallback(
+    (flow: ReactFlowInstance<RfNode, RfEdge>) => {
+      flowRef.current = flow;
+    },
+    [],
+  );
+
+  /** Fit everything on screen — the palette's and phone toolbar's Fit. */
+  const fitAll = useCallback(() => {
+    flowRef.current?.fitView();
+  }, []);
+
+  /** Toast + screen-reader announcement (spec 6.9 live region). */
+  const announce = useCallback((text: string) => {
+    setToast(text);
+    window.setTimeout(
+      () => setToast((current) => (current === text ? null : current)),
+      6000,
     );
   }, []);
 
@@ -596,14 +640,9 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
       if (ids.length === 0) return;
       commit(ids.map((id): CanvasOp => ({ op: "node.delete", id })));
       const one = ids.length === 1;
-      const text = one ? "Removed from map" : `${ids.length} cards removed`;
-      setToast(text);
-      window.setTimeout(
-        () => setToast((current) => (current === text ? null : current)),
-        6000,
-      );
+      announce(one ? "Removed from map" : `${ids.length} cards removed`);
     },
-    [commit],
+    [announce, commit],
   );
 
   const removeCard = useCallback(
@@ -661,9 +700,10 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
       // The new card becomes the selection, so the chrome (remove, eye,
       // recolour) is immediately reachable — plain language, no hunting.
       setOneSelected(op.id);
+      announce("Card added to the map");
       return op.id;
     },
-    [commit, nodes.length, roundPos, setOneSelected],
+    [announce, commit, nodes.length, roundPos, setOneSelected],
   );
 
   // --------------------------------------------------------------------------
@@ -867,6 +907,10 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
       const next =
         order[(index + step + order.length) % order.length] ?? order[0]!;
       setOneSelected(next.id);
+      // Roving tabindex (spec 6.9): the walk moves real focus to the card.
+      document
+        .getElementById(`canvas-card-${next.id}`)
+        ?.focus({ preventScroll: true });
       centerOn(next);
     },
     [centerOn, selectedCardIds, setOneSelected],
@@ -959,9 +1003,12 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
           ops.push({ op: "node.update", id: follower.id, x, y });
         }
       }
-      if (ops.length > 0) commit(ops);
+      if (ops.length > 0) {
+        commit(ops);
+        announce(ops.length === 1 ? "Card moved" : `${ops.length} cards moved`);
+      }
     },
-    [commit, roundPos],
+    [announce, commit, roundPos],
   );
 
   // --------------------------------------------------------------------------
@@ -993,20 +1040,22 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   // --------------------------------------------------------------------------
   // Connections
   // --------------------------------------------------------------------------
-  const onConnect = useCallback(
-    (connection: Connection) => {
-      const { source, target, sourceHandle, targetHandle } = connection;
-      if (
-        !source ||
-        !target ||
-        source === target ||
-        !stateRef.current.cards[source] ||
-        !stateRef.current.cards[target]
-      ) {
-        return;
-      }
-      const sourceCard = stateRef.current.cards[source]!;
-      const targetCard = stateRef.current.cards[target]!;
+  /**
+   * The edge add (spec 6.2): handles carry sides when the leader dragged
+   * from a specific handle; tap linking (spec 6.8) picks the nearest side.
+   * One history batch, one spoken announcement.
+   */
+  const connectCards = useCallback(
+    (
+      source: string,
+      target: string,
+      sourceHandle?: string | null,
+      targetHandle?: string | null,
+    ) => {
+      if (source === target) return;
+      const sourceCard = stateRef.current.cards[source];
+      const targetCard = stateRef.current.cards[target];
+      if (!sourceCard || !targetCard) return;
       const fromCandidate = (sourceHandle ?? null) as Side | null;
       const toCandidate = (targetHandle ?? null) as Side | null;
       const fromSide =
@@ -1026,8 +1075,18 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         to_side: toSide,
       };
       commit([op]);
+      announce("Cards linked");
     },
-    [commit],
+    [announce, commit],
+  );
+
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      const { source, target, sourceHandle, targetHandle } = connection;
+      if (!source || !target || source === target) return;
+      connectCards(source, target, sourceHandle, targetHandle);
+    },
+    [connectCards],
   );
 
   // --------------------------------------------------------------------------
@@ -1161,13 +1220,41 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     [paneActive, paneEntries],
   );
 
-  /** Clicking a note or file card opens it in the pane (spec 6.6). */
+  /**
+   * Clicking a card (spec 6.6): a note or file opens in the side pane. In
+   * connect mode (spec 6.8) clicks pick the link ends instead: first tap
+   * is the source, second tap creates the edge and the mode stays on so
+   * several links can follow; the toolbar button or Esc ends the mode.
+   */
   const onNodeClick = useCallback(
     (_event: ReactMouseEvent, node: RfNode) => {
       const card = node.data.card;
+      if (connectMode) {
+        if (connectFrom === null) {
+          setConnectFrom(card.id);
+          setOneSelected(card.id);
+          announce("Linking: now tap the card it links to");
+          return;
+        }
+        const from = connectFrom;
+        setConnectFrom(null);
+        if (from === card.id) {
+          announce("Pick a different card to link");
+          return;
+        }
+        connectCards(from, card.id);
+        return;
+      }
       if (card.kind === "note" || card.kind === "file") openPaneFor(card.id);
     },
-    [openPaneFor],
+    [
+      announce,
+      connectCards,
+      connectFrom,
+      connectMode,
+      openPaneFor,
+      setOneSelected,
+    ],
   );
 
   // --------------------------------------------------------------------------
@@ -1429,9 +1516,15 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         return;
       }
       if (key === "escape") {
-        // Close palette, pane, menu, sheet, selection (spec 6.3 / 6.6 / 6.7).
+        // Close palette, card menu, link mode, pane, menu, sheet,
+        // selection (spec 6.3 / 6.6 / 6.7 / 6.8).
         if (paletteOpen) {
           setPaletteOpen(false);
+        } else if (cardMenuId !== null) {
+          setCardMenuId(null);
+        } else if (connectMode) {
+          setConnectMode(false);
+          setConnectFrom(null);
         } else if (paneActive !== null) {
           closePane(null);
         } else if (picker !== null) {
@@ -1485,11 +1578,13 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [
     addCard,
+    cardMenuId,
     closePicker,
     copySelected,
     duplicateSelected,
     clearSelection,
     closePane,
+    connectMode,
     focusConnected,
     getQueue,
     groupSelected,
@@ -1730,8 +1825,15 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
       removeCard,
       recolourCard: recolourSelected,
       toggleStudentVisible,
+      openCardMenu,
     }),
-    [queueOps, removeCard, recolourSelected, toggleStudentVisible],
+    [
+      queueOps,
+      removeCard,
+      recolourSelected,
+      toggleStudentVisible,
+      openCardMenu,
+    ],
   );
 
   // --------------------------------------------------------------------------
@@ -1785,6 +1887,12 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     },
     [onNodesChange, onNodeCommit, nodes],
   );
+
+  // The long-press menu works on the live render state (never refs).
+  const menuCard =
+    cardMenuId !== null
+      ? (nodes.find((node) => node.id === cardMenuId)?.data.card ?? null)
+      : null;
 
   return (
     <CanvasProvider value={contextValue}>
@@ -1874,6 +1982,8 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
           className={`min-w-0 flex-1 rounded-lg ${
             dragOver ? "ring-ring ring-2 ring-offset-2" : ""
           }`}
+          role="region"
+          aria-label={`Map: ${payload.title}`}
           onDoubleClick={onCanvasDoubleClick}
           onDragEnter={onCanvasDragEnter}
           onDragOver={onCanvasDragOver}
@@ -1881,9 +1991,7 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
           onDrop={onCanvasDrop}
         >
           <ReactFlow
-            onInit={(flow) => {
-              flowRef.current = flow;
-            }}
+            onInit={handleFlowInit}
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChangeAll}
@@ -2024,20 +2132,23 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
             addCard("note", { node_id: note.id, label: note.title });
           }}
           onNewTextCard={() => addCard("text", { body: "Write here…" })}
-          onNewGroup={groupSelected}
+          onNewGroup={() => addCard("group", { label: "New group" })}
           onTidy={tidyAll}
-          onFit={() => flowRef.current?.fitView()}
+          onFit={fitAll}
           onSaveVersion={openVersions}
           snap={snapGrid}
           onToggleSnap={() => setSnapGrid((on) => !on)}
         />
       ) : null}
 
+      {/* Screen-reader announcements (spec 6.9): always mounted so the
+          live region exists before the first announcement lands. */}
+      <div role="status" aria-live="polite" className="sr-only">
+        {toast ?? ""}
+      </div>
+
       {toast ? (
-        <div
-          role="status"
-          className="bg-background fixed bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold shadow-lg"
-        >
+        <div className="bg-background fixed bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold shadow-lg">
           {toast}
           {canUndo ? (
             <button
@@ -2050,6 +2161,63 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
           ) : null}
         </div>
       ) : null}
+
+      {payload.currentUserId !== null && menuCard ? (
+        <CardActionSheet
+          card={menuCard}
+          legend={payload.legend}
+          onRecolour={(color) => {
+            setCardMenuId(null);
+            recolourSelected(color);
+          }}
+          onToggleStudentVisible={(visible) => {
+            setCardMenuId(null);
+            toggleStudentVisible(menuCard.id, visible);
+          }}
+          canOpenPane={menuCard.kind === "note" || menuCard.kind === "file"}
+          onOpenPane={() => {
+            setCardMenuId(null);
+            openPaneFor(menuCard.id);
+          }}
+          onRemove={() => {
+            setCardMenuId(null);
+            removeCards([menuCard.id]);
+          }}
+          onClose={() => setCardMenuId(null)}
+        />
+      ) : null}
+
+      <MobileToolbar
+        canEdit
+        saveStatus={saveStatus}
+        onRetrySave={() => getQueue().retry()}
+        connectMode={connectMode}
+        onToggleConnect={() => {
+          setConnectMode((on) => !on);
+          setConnectFrom(null);
+          announce("Link mode: tap the first card, then the card it links to");
+        }}
+        onAddText={() => addCard("text", { body: "Write here…" })}
+        onAddNote={() => openPicker("note")}
+        onAddFile={() => openPicker("file")}
+        onAddUpload={() => uploadInputRef.current?.click()}
+        onAddLink={() => addCard("link")}
+        onAddGroup={() => addCard("group", { label: "New group" })}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onFit={fitAll}
+        selectedCount={selectedCardIds.length}
+        onRemoveSelected={() => removeCards(selectedCardIds)}
+        legend={payload.legend}
+        onRecolour={recolourSelected}
+        onOpenLegend={() => setLegendOpen(true)}
+        onOpenVersions={openVersions}
+        published={published}
+        onTogglePublished={(next) => void togglePublished(next)}
+        savingPublish={savingPublish}
+      />
 
       <input
         ref={uploadInputRef}
@@ -2158,6 +2326,111 @@ function PickerDialog(props: PickerDialogProps) {
         </button>
       </div>
     </dialog>
+  );
+}
+
+// --------------------------------------------------------------------------
+// The card context menu (long-press / right-click, spec 6.8). It works on
+// the card ON the map only: removing from the map never deletes the note,
+// file, upload or link behind it (spec 6.11 rule).
+// --------------------------------------------------------------------------
+function CardActionSheet(props: {
+  card: CanvasCard;
+  legend: Record<string, string>;
+  onRecolour: (color: string | null) => void;
+  onToggleStudentVisible: (visible: boolean) => void;
+  canOpenPane: boolean;
+  onOpenPane: () => void;
+  onRemove: () => void;
+  onClose: () => void;
+}) {
+  const eyeTargets =
+    props.card.kind === "text" ||
+    props.card.kind === "link" ||
+    props.card.kind === "group";
+  return (
+    <div className="fixed inset-0 z-40 bg-black/40">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Card actions"
+        className="bg-background fixed inset-x-0 bottom-0 max-h-[70dvh] overflow-y-auto rounded-t-xl border-t p-2"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.5rem)" }}
+      >
+        <h2 className="text-sm font-bold">Card actions</h2>
+        <p className="text-muted-foreground truncate text-xs" dir="auto">
+          {props.card.label || props.card.body || props.card.url || ""}
+        </p>
+        <div className="flex min-h-11 flex-wrap items-center gap-1.5 px-1 py-2">
+          <span className="text-muted-foreground text-[11px] font-semibold">
+            Colour
+          </span>
+          {CANVAS_COLORS.map((slot) => (
+            <button
+              key={slot}
+              type="button"
+              aria-label={`Colour ${slot}${props.legend[slot] ? `: ${props.legend[slot]}` : ""}`}
+              onClick={() => props.onRecolour(slot)}
+              className="border-border h-11 w-11 rounded-md border"
+            >
+              <span
+                className="block h-full w-full rounded-[6px]"
+                style={{ background: `var(--canvas-${slot})` }}
+              />
+            </button>
+          ))}
+          <button
+            type="button"
+            aria-label="No colour"
+            onClick={() => props.onRecolour(null)}
+            className="bg-background border-border h-11 w-11 rounded-md border text-xs font-semibold"
+          >
+            ✕
+          </button>
+        </div>
+        {props.canOpenPane ? (
+          <SheetRow label="Open in the side pane" onClick={props.onOpenPane} />
+        ) : null}
+        {eyeTargets ? (
+          <SheetRow
+            label={
+              props.card.studentVisible
+                ? "Hide from students"
+                : "Show to students"
+            }
+            onClick={() =>
+              props.onToggleStudentVisible(!props.card.studentVisible)
+            }
+          />
+        ) : null}
+        <SheetRow label="Remove from the map" onClick={props.onRemove} danger />
+        <SheetRow label="Close" onClick={props.onClose} />
+      </div>
+    </div>
+  );
+}
+
+function SheetRow({
+  label,
+  onClick,
+  danger = false,
+}: {
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "min-h-11 w-full rounded-lg px-3 py-2 text-left text-sm font-semibold",
+        danger ? "text-destructive" : "",
+        danger ? "" : "hover:bg-accent",
+      ].join(" ")}
+    >
+      {label}
+    </button>
   );
 }
 

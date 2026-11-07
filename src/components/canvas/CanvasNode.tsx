@@ -10,6 +10,7 @@ import {
   type NodeProps,
   type NodeTypes,
 } from "@xyflow/react";
+import { useEffect, useRef } from "react";
 import NoteCard from "./cards/NoteCard";
 import FileCard from "./cards/FileCard";
 import TextCard from "./cards/TextCard";
@@ -45,6 +46,15 @@ const ICONS: Record<CanvasCard["kind"], string> = {
   group: "🗂️",
 };
 
+/** Spoken kind names for the card's aria-label (spec 6.9). */
+const kindLabels: Record<CanvasCard["kind"], string> = {
+  note: "Note card",
+  file: "File card",
+  text: "Text card",
+  link: "Link card",
+  group: "Group",
+};
+
 /** Below this zoom cards degrade to icon + title (level of detail). */
 const LOD_ZOOM = 0.4;
 
@@ -68,9 +78,40 @@ function CanvasNodeInner(props: NodeProps<CanvasFlowNode>) {
   const { data, selected } = props;
   const card = data.card;
   const leader = data.leader;
-  const { removeCard, toggleStudentVisible } = useCanvasContext();
+  const { removeCard, toggleStudentVisible, openCardMenu } = useCanvasContext();
   const zoom = useStore((store) => store.transform[2]);
   const detailed = zoom >= LOD_ZOOM;
+  // Spec 6.9: every card's spoken name carries its kind, its title and
+  // how many edges it has, so screen readers can say what a card is
+  // without waiting for the whole canvas. The count rides the flow
+  // store; React only re-renders a node whose number actually changes.
+  const connections = useStore((store) =>
+    store.edges.reduce(
+      (count, edge) =>
+        count + (edge.source === card.id || edge.target === card.id ? 1 : 0),
+      0,
+    ),
+  );
+
+  // Long-press (spec 6.8) opens the card menu on touch; a move cancels
+  // it, so dragging never pops the menu. Right-click reuses the menu.
+  const pressRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (pressRef.current !== null) window.clearTimeout(pressRef.current);
+    },
+    [],
+  );
+  const startPress = () => {
+    if (!leader) return;
+    pressRef.current = window.setTimeout(() => openCardMenu(card.id), 500);
+  };
+  const cancelPress = () => {
+    if (pressRef.current !== null) {
+      window.clearTimeout(pressRef.current);
+      pressRef.current = null;
+    }
+  };
 
   // The eye toggle lives on text, link and group cards only (spec 6.2);
   // note and file visibility is managed in their own menus.
@@ -151,12 +192,29 @@ function CanvasNodeInner(props: NodeProps<CanvasFlowNode>) {
 
   return (
     <div
+      id={`canvas-card-${card.id}`}
+      tabIndex={selected ? 0 : -1}
+      role="group"
+      aria-label={
+        `${kindLabels[card.kind]}${title ? `, ${title}` : ""}, ` +
+        `${connections === 1 ? "1 connection" : `${connections} connections`}`
+      }
       className={[
         "relative h-full w-full border",
         selected ? "border-ring ring-ring/50 ring-2" : "border-border",
         card.kind === "group" ? "rounded-xl" : "rounded-[10px]",
+        // Focus ring (spec 6.9): 2 px, offset 2 px, never removed.
+        "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
       ].join(" ")}
       style={styleFor(card)}
+      onTouchStart={startPress}
+      onTouchEnd={cancelPress}
+      onTouchMove={cancelPress}
+      onContextMenu={(event) => {
+        if (!leader) return;
+        event.preventDefault();
+        openCardMenu(card.id);
+      }}
     >
       {leader && selected ? (
         <NodeResizer minWidth={80} minHeight={40} isVisible />

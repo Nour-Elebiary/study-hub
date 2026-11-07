@@ -42,7 +42,7 @@ export default function Toolbar(props: ToolbarProps) {
     props.selectedCardIds.length === 1 ? props.selectedCardIds[0]! : null;
 
   return (
-    <div className="bg-background flex flex-wrap items-center gap-2 border-b p-2">
+    <div className="bg-background flex flex-wrap items-center gap-2 border-b p-2 max-md:hidden">
       {props.canEdit ? (
         <>
           <AddButton label="Add text card" onClick={props.onAddText} />

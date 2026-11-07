@@ -191,3 +191,20 @@
   --canvas-5: #ede9fe; /* violet-ish */
   --canvas-6: #f1f5f9; /* slate-ish */
 }
+
+/* Canvas touch behaviour (CANVAS-SPEC 6.8): panning the map must never
+   scroll or zoom the page — only the pane's own gestures stay, everything
+   else on the page keeps normal scrolling. */
+.react-flow__pane {
+  touch-action: none;
+}
+
+/* Touch pointers (CANVAS-SPEC 6.8): handles and resize corners get a 24 px
+   hit area — a finger, not a mouse pointer, has to catch them. */
+@media (pointer: coarse) {
+  .react-flow__handle,
+  .react-flow__resize-control.handle {
+    width: 24px;
+    height: 24px;
+  }
+}
