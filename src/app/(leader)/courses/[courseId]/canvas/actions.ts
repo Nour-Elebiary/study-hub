@@ -10,6 +10,7 @@ import {
   createCanvas,
   getCanvasRev,
   getCourseTree,
+  listCanvases,
   listCourseFiles,
   listCourseNotes,
   listVersions,
@@ -528,6 +529,32 @@ export async function getCanvasRevAction(
 ): Promise<number | null> {
   await requireSession();
   return getCanvasRev(canvasId);
+}
+
+/**
+ * The palette's "Maps" group (spec 6.7): the course's maps, RLS-scoped
+ * through the same DAL read the outline page uses. Validation for the
+ * callers is zod-free by design — the ids stay opaque strings, and every
+ * database read is re-checked by its own policies.
+ */
+export async function listCanvasesAction(
+  courseId: string,
+): Promise<
+  | { ok: true; canvases: { id: string; title: string; isDefault: boolean }[] }
+  | { error: string }
+> {
+  await requireSession();
+  if (!UUID_PATTERN.test(courseId))
+    return failed("That course link is not real.");
+  const rows = await listCanvases(courseId);
+  return {
+    ok: true,
+    canvases: rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      isDefault: row.isDefault,
+    })),
+  };
 }
 
 // ---------------------------------------------------------------------------

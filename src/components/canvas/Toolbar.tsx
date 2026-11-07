@@ -30,6 +30,8 @@ export type ToolbarProps = {
   legend: Record<string, string>;
   onOpenLegend: () => void;
   onOpenVersions: () => void;
+  /** Visible search button (spec 6.7) — opens the command palette, also for touch. */
+  onOpenPalette: () => void;
   published: boolean;
   onTogglePublished: (published: boolean) => void;
   savingPublish: boolean;
@@ -124,6 +126,13 @@ export default function Toolbar(props: ToolbarProps) {
 
       {props.canEdit ? (
         <>
+          <button
+            type="button"
+            onClick={props.onOpenPalette}
+            className="rounded border px-2.5 py-1.5 text-[11px] font-semibold"
+          >
+            Search<span aria-hidden="true"> ⌘</span>
+          </button>
           <button
             type="button"
             onClick={props.onOpenLegend}

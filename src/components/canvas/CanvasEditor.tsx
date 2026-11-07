@@ -34,6 +34,7 @@ import {
 import Toolbar from "./Toolbar";
 import LegendEditor from "./LegendEditor";
 import VersionsSheet from "./VersionsSheet";
+import { CommandPalette, type PaletteCard } from "./CommandPalette";
 import { CanvasProvider, type CanvasContextValue } from "./editor-context";
 import { applyOps, invertOps, defaultSizeOf } from "@/lib/canvas/ops";
 import {
@@ -50,6 +51,7 @@ import {
   cardsInsideGroup,
   nearestSide,
   snap,
+  tidyCards,
   unionRect,
 } from "@/lib/canvas/geometry";
 import {
@@ -201,6 +203,9 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [legendOpen, setLegendOpen] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
+  // The command palette (spec 6.7) — Ctrl/Cmd+K or the toolbar Search
+  // button; its own input keeps its typing (isEditableTarget early-out).
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [published, setPublished] = useState(payload.published);
   const [savingPublish, setSavingPublish] = useState(false);
   const [picker, setPicker] = useState<"note" | "file" | null>(null);
@@ -233,6 +238,9 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   // cached per note id, so switching tabs does not refetch.
   const [paneEntries, setPaneEntries] = useState<PaneEntry[]>([]);
   const [paneActive, setPaneActive] = useState<string | null>(null);
+  // Snap toggle (spec 6.7 palette action): on by default, positions ride
+  // the 20 px grid; off, they land on whole pixels instead.
+  const [snapGrid, setSnapGrid] = useState(true);
   const noteBodyRef = useRef(
     new Map<
       string,
@@ -498,14 +506,20 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   // Interaction handlers
   // --------------------------------------------------------------------------
 
+  /** Toggles on: snap to the 20 px grid; off: plain pixels (spec 6.7). */
+  const roundPos = useCallback(
+    (value: number) => (snapGrid ? snap(value, GRID_SIZE) : Math.round(value)),
+    [snapGrid],
+  );
+
   // End of drag or resize → position/size op (snapped to the 20 grid).
   const onNodeCommit = useCallback(
     (node: RfNode & Node<CanvasNodeData>) => {
       const card = stateRef.current.cards[node.id];
       if (!card) return;
       const change: CanvasOp = { op: "node.update", id: node.id };
-      const x = snap(node.position.x, GRID_SIZE);
-      const y = snap(node.position.y, GRID_SIZE);
+      const x = roundPos(node.position.x);
+      const y = roundPos(node.position.y);
       const width = Math.round(node.width ?? card.width);
       const height = Math.round(node.height ?? card.height);
       let changed = false;
@@ -524,7 +538,7 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
       // visual position to match (React Flow kept the unsnapped one).
       commit([change]);
     },
-    [commit],
+    [commit, roundPos],
   );
 
   const selectedCardIds = useMemo(
@@ -637,8 +651,8 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         op: "node.add",
         id: crypto.randomUUID(),
         kind,
-        x: snap(centre.x - size.width / 2 + jitter, GRID_SIZE),
-        y: snap(centre.y - size.height / 2 + jitter, GRID_SIZE),
+        x: roundPos(centre.x - size.width / 2 + jitter),
+        y: roundPos(centre.y - size.height / 2 + jitter),
         width: size.width,
         height: size.height,
         ...seed,
@@ -649,7 +663,7 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
       setOneSelected(op.id);
       return op.id;
     },
-    [commit, nodes.length, setOneSelected],
+    [commit, nodes.length, roundPos, setOneSelected],
   );
 
   // --------------------------------------------------------------------------
@@ -785,14 +799,14 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
       id: crypto.randomUUID(),
       kind: "group",
       label: "New group",
-      x: snap(rect.x - 40, GRID_SIZE),
-      y: snap(rect.y - 40, GRID_SIZE),
+      x: roundPos(rect.x - 40),
+      y: roundPos(rect.y - 40),
       width: rect.width + 80,
       height: rect.height + 80,
     } as CanvasOp;
     commit([op]);
     setOneSelected(op.id);
-  }, [commit, selectedCardIds, setOneSelected]);
+  }, [commit, roundPos, selectedCardIds, setOneSelected]);
 
   /**
    * `]` / `[`: bring to front / send to back. Plain cards live in 0…1000,
@@ -924,8 +938,8 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
       for (const dragged of nodes) {
         const card = stateRef.current.cards[dragged.id];
         if (!card) continue;
-        const x = snap(dragged.position.x, GRID_SIZE);
-        const y = snap(dragged.position.y, GRID_SIZE);
+        const x = roundPos(dragged.position.x);
+        const y = roundPos(dragged.position.y);
         if (x === card.x && y === card.y) continue;
         ops.push({ op: "node.update", id: dragged.id, x, y });
         touched.add(dragged.id);
@@ -939,15 +953,15 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         const dy = groupOp?.y !== undefined ? groupOp.y - snapshot.origin.y : 0;
         for (const follower of snapshot.followers) {
           if (touched.has(follower.id)) continue;
-          const x = snap(follower.x + dx, GRID_SIZE);
-          const y = snap(follower.y + dy, GRID_SIZE);
+          const x = roundPos(follower.x + dx);
+          const y = roundPos(follower.y + dy);
           if (x === follower.x && y === follower.y) continue;
           ops.push({ op: "node.update", id: follower.id, x, y });
         }
       }
       if (ops.length > 0) commit(ops);
     },
-    [commit],
+    [commit, roundPos],
   );
 
   // --------------------------------------------------------------------------
@@ -1219,6 +1233,104 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     };
   }, [getQueue, payload.id, router]);
 
+  // --------------------------------------------------------------------------
+  // Command palette glue (spec 6.7). Declared before the shortcut effect,
+  // which reads these callbacks.
+  // --------------------------------------------------------------------------
+  /** Ctrl+S / the palette "Save a named version": flush, then open the sheet. */
+  const openVersions = useCallback(() => {
+    getQueue().flushNow();
+    setVersionsOpen(true);
+  }, [getQueue]);
+
+  /** "Tidy up": packs every card into reading-order rows (spec 6.7). */
+  const tidyAll = useCallback(() => {
+    const cards = Object.values(stateRef.current.cards);
+    if (cards.length === 0) return;
+    // A card inside a group keeps its offset to the frame: tidy moves the
+    // frames and the top-level cards, then drags the members along — one
+    // history batch, like a group drag.
+    const groups = cards.filter((card) => card.kind === "group");
+    const memberOf = new Map<string, string>();
+    for (const frame of groups) {
+      for (const member of cardsInsideGroup(frame, cards)) {
+        if (member.id !== frame.id && !memberOf.has(member.id)) {
+          memberOf.set(member.id, frame.id);
+        }
+      }
+    }
+    const positions = tidyCards(
+      cards
+        .filter((card) => card.kind === "group" || !memberOf.has(card.id))
+        .map((card) => ({
+          id: card.id,
+          x: card.x,
+          y: card.y,
+          width: card.width,
+          height: card.height,
+          kind: card.kind,
+        })),
+    );
+    const next = new Map(Object.entries(positions));
+    for (const frame of groups) {
+      const target = positions[frame.id];
+      if (!target) continue;
+      const dx = target.x - frame.x;
+      const dy = target.y - frame.y;
+      if (dx === 0 && dy === 0) continue;
+      for (const member of cards) {
+        if (memberOf.get(member.id) !== frame.id) continue;
+        if (next.has(member.id)) continue;
+        next.set(member.id, { x: member.x + dx, y: member.y + dy });
+      }
+    }
+    const ops: CanvasOp[] = [];
+    for (const [id, pos] of next) {
+      const card = stateRef.current.cards[id];
+      if (card && (card.x !== pos.x || card.y !== pos.y)) {
+        ops.push({ op: "node.update", id, x: pos.x, y: pos.y });
+      }
+    }
+    if (ops.length > 0) commit(ops);
+  }, [commit]);
+
+  /** The palette's "Cards on this map" group, straight from the live nodes. */
+  const paletteCards = useMemo<PaletteCard[]>(
+    () =>
+      nodes.map((node) => {
+        const card = node.data.card;
+        const title =
+          card.label?.trim() ||
+          node.data.note?.title ||
+          node.data.file?.name ||
+          card.body ||
+          card.url ||
+          "";
+        return { id: card.id, title, kind: card.kind };
+      }),
+    [nodes],
+  );
+
+  /** Note ids already on the map — hidden from the palette's "Add to map". */
+  const mappedNoteIds = useMemo(
+    () =>
+      nodes
+        .map((node) => node.data.card.nodeId)
+        .filter((nodeId): nodeId is string => Boolean(nodeId)),
+    [nodes],
+  );
+
+  /** Palette pick: select the card and bring it into view. */
+  const focusPaletteCard = useCallback(
+    (cardId: string) => {
+      const card = stateRef.current.cards[cardId];
+      if (!card) return;
+      setOneSelected(cardId);
+      centerOn(card);
+    },
+    [centerOn, setOneSelected],
+  );
+
   // The full §6.3 table that works without extra UI (the palette, the
   // side pane and the `?` sheet attach to their own slices). Shortcuts
   // never fire while a text field, contenteditable or a palette input has
@@ -1226,6 +1338,9 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) return;
+      // While the palette is open it keeps all keys; cmdk closes on Escape
+      // itself (spec 6.7).
+      if (paletteOpen) return;
       const mod = event.ctrlKey || event.metaKey;
       const key = event.key.toLowerCase();
       if (mod && !event.shiftKey && key === "z") {
@@ -1245,8 +1360,19 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         // Ctrl+S saves a named version (spec 6.3); flush the queue first so
         // the version contains the unsaved changes.
         event.preventDefault();
-        getQueue().flushNow();
-        setVersionsOpen(true);
+        openVersions();
+        return;
+      }
+      if (mod && key === "k") {
+        // The command palette (spec 6.7). Its own input keeps typed keys —
+        // the guard above only decides whether WE act on them.
+        event.preventDefault();
+        setPaletteOpen(true);
+        return;
+      }
+      if (mod && event.shiftKey && key === "l") {
+        event.preventDefault();
+        tidyAll();
         return;
       }
       if (mod && key === "a") {
@@ -1303,8 +1429,10 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         return;
       }
       if (key === "escape") {
-        // Close pane, menu, sheet, selection (spec 6.3 / 6.6).
-        if (paneActive !== null) {
+        // Close palette, pane, menu, sheet, selection (spec 6.3 / 6.6 / 6.7).
+        if (paletteOpen) {
+          setPaletteOpen(false);
+        } else if (paneActive !== null) {
           closePane(null);
         } else if (picker !== null) {
           closePicker();
@@ -1367,6 +1495,8 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     groupSelected,
     layerSelected,
     legendOpen,
+    openVersions,
+    paletteOpen,
     picker,
     nudgeSelected,
     openPaneFor,
@@ -1377,6 +1507,7 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     selectedCardIds,
     setAllSelected,
     tabTo,
+    tidyAll,
     undo,
     versionsOpen,
   ]);
@@ -1676,6 +1807,7 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         legend={payload.legend}
         onOpenLegend={() => setLegendOpen(true)}
         onOpenVersions={() => setVersionsOpen(true)}
+        onOpenPalette={() => setPaletteOpen(true)}
         published={published}
         onTogglePublished={(next) => void togglePublished(next)}
         savingPublish={savingPublish}
@@ -1865,6 +1997,41 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
           router.refresh();
         }}
       />
+
+      {payload.currentUserId !== null ? (
+        <CommandPalette
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          courseId={payload.courseId}
+          canvasId={payload.id}
+          cardsOnMap={paletteCards}
+          mappedNoteIds={mappedNoteIds}
+          onPickCard={focusPaletteCard}
+          onAddNote={(note) => {
+            // Same optimistic hand-off as the picker (see PickerDialog):
+            // the fresh note is not in notesRef yet.
+            notesRef.current = {
+              ...notesRef.current,
+              [note.id]: {
+                id: note.id,
+                title: note.title,
+                area: note.area,
+                published: note.published,
+                deleted: false,
+                preview: null,
+              },
+            };
+            addCard("note", { node_id: note.id, label: note.title });
+          }}
+          onNewTextCard={() => addCard("text", { body: "Write here…" })}
+          onNewGroup={groupSelected}
+          onTidy={tidyAll}
+          onFit={() => flowRef.current?.fitView()}
+          onSaveVersion={openVersions}
+          snap={snapGrid}
+          onToggleSnap={() => setSnapGrid((on) => !on)}
+        />
+      ) : null}
 
       {toast ? (
         <div

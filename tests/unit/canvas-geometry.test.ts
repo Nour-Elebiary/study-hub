@@ -6,6 +6,7 @@ import {
   nearestSide,
   rectOf,
   snap,
+  tidyCards,
   unionRect,
 } from "@/lib/canvas/geometry";
 import type { CanvasCard } from "@/lib/canvas/types";
@@ -138,5 +139,44 @@ describe("distributeCards", () => {
     expect(distributeCards([box("a", 0, 0), box("b", 200, 0)], "x")).toEqual(
       {},
     );
+  });
+});
+
+describe("tidyCards", () => {
+  it("packs scattered cards into rows and wraps past the width budget", () => {
+    // Scattered: b on the top band, c under it, a lower and wide.
+    const next = tidyCards(
+      [
+        box("a", 0, 400, { width: 300, height: 120 }),
+        box("b", 200, 0),
+        box("c", 0, 200),
+      ],
+      260,
+    );
+    // Reading order is b (band 0), c (band 2), a (band 4); the union is
+    // 300 px wide, so b and c share row one and wide a wraps to row two.
+    expect(next.b).toEqual({ x: 0, y: 0 });
+    expect(next.c).toEqual({ x: 140, y: 0 }); // 100 + gap 40, same row
+    expect(next.a).toEqual({ x: 0, y: 100 }); // row height 60 + gap 40
+  });
+
+  it("keeps sizes untouched and returns nothing for no cards", () => {
+    const single = { id: "only", x: 500, y: 500, width: 300, height: 120 };
+    const next = tidyCards([single]);
+    expect(next.only).toEqual({ x: 500, y: 500 });
+    expect(tidyCards([])).toEqual({});
+  });
+
+  it("orders rows by 100 px bands, not by name", () => {
+    // Alphabetically a-before < m-mid < z-before, but band 0 must be packed
+    // first, so z-before takes the leftmost slot of the single row.
+    const next = tidyCards([
+      box("z-before", 0, 0, { width: 100 }),
+      box("a-before", 0, 50, { width: 100 }),
+      box("m-mid", 0, 500, { width: 100 }),
+    ]);
+    expect(next["z-before"]).toEqual({ x: 0, y: 0 });
+    expect(next["a-before"]).toEqual({ x: 140, y: 0 });
+    expect(next["m-mid"]).toEqual({ x: 280, y: 0 });
   });
 });
