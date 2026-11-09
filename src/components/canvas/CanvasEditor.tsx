@@ -1567,6 +1567,34 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         tabTo(event.shiftKey ? -1 : 1);
         return;
       }
+      if (key === "l") {
+        // Keyboard connect (QUESTIONS.md): the spec's 6.3 table has no
+        // connect key, but the keyboard-only acceptance flow needs one.
+        // `L` starts from the single selected card; Tab then Enter (or a
+        // tap/click) on the target completes, Esc cancels — the same
+        // state the touch Connect mode already drives.
+        event.preventDefault();
+        if (selectedCardIds.length === 1 && connectFrom === null) {
+          setConnectMode(true);
+          setConnectFrom(selectedCardIds[0]!);
+          announce("Linking: Tab to the second card and press Enter");
+        }
+        return;
+      }
+      if (key === "enter" && connectMode && connectFrom !== null) {
+        // Enter during link mode completes the link to the selected card
+        // (the roving selection IS the target). Opens the pane otherwise.
+        if (
+          selectedCardIds.length === 1 &&
+          connectFrom !== selectedCardIds[0]
+        ) {
+          event.preventDefault();
+          const from = connectFrom;
+          setConnectFrom(null);
+          connectCards(from, selectedCardIds[0]!);
+          return;
+        }
+      }
       if (
         key === "enter" &&
         selectedCardIds.length > 0 &&
@@ -1656,12 +1684,15 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [
     addCard,
+    announce,
     cardMenuId,
     closePicker,
     copySelected,
     duplicateSelected,
     clearSelection,
     closePane,
+    connectCards,
+    connectFrom,
     connectMode,
     focusConnected,
     getQueue,

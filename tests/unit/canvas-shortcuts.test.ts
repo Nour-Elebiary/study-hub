@@ -25,6 +25,8 @@ const SPEC_ACTIONS = [
   "open-side-pane",
   "escape",
   "show-shortcuts",
+  /** Ours, not the spec's — the keyboard connect (see QUESTIONS.md). */
+  "start-link",
 ] as const;
 
 describe("shortcut table (spec 6.11: no duplicate keys)", () => {

@@ -25,7 +25,15 @@ export type CanvasShortcutAction =
   | "tab-previous"
   | "open-side-pane"
   | "escape"
-  | "show-shortcuts";
+  | "show-shortcuts"
+  /**
+   * Not in the spec's 6.3 table (see QUESTIONS.md, keyboard connect):
+   * the spec lists connect only as a mouse-handle drag and touch tap-tap,
+   * but the keyboard-only acceptance flow must be able to link two cards
+   * too. `L` starts linking from the selected card; Enter on the target
+   * card (or a tap/click) completes it, Esc cancels.
+   */
+  | "start-link";
 
 export type CanvasShortcut = {
   /** Key variants, canonical form: modifiers upper-case, letters upper-case. */
@@ -92,6 +100,11 @@ export const CANVAS_SHORTCUTS: readonly CanvasShortcut[] = [
     keys: ["Esc"],
     action: "escape",
     label: "Close menu, pane or selection (in that order)",
+  },
+  {
+    keys: ["L"],
+    action: "start-link",
+    label: "Start linking the selected card; Tab to the target and press Enter",
   },
   { keys: ["?"], action: "show-shortcuts", label: "Show this list" },
 ];
