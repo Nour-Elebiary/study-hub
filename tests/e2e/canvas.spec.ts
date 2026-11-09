@@ -10,13 +10,17 @@ import {
   LEADER_PASSWORD,
   LEADER_STATE_PATH,
   PUBLISHED_NOTE_ID,
+  addTextCard,
   card,
   connectCards,
   createMap,
   dragCard,
   expectNoSeriousViolations,
   expectSaved,
+  mapReady,
   nodePosition,
+  openNotePicker,
+  openPublishToggle,
   withStudent,
 } from "./canvas-helpers";
 
@@ -70,8 +74,9 @@ test.describe.serial("canvas (M9 acceptance a–d)", () => {
     // the parallel desktop project cannot collide with this one).
     harnessPath = await createMap(page, `E2E map — ${project}`);
 
-    // Add a text card, then move it with a mouse drag.
-    await page.getByRole("button", { name: "Add text card" }).click();
+    // Add a text card, then move it with a mouse drag. The add control is
+    // the top toolbar at >= 768 px and the phone Add sheet below it.
+    await addTextCard(page);
     await expect(card(page, "Write here…")).toBeVisible({ timeout: 10_000 });
     await dragCard(page, "Write here…", 80, 40);
 
@@ -83,7 +88,7 @@ test.describe.serial("canvas (M9 acceptance a–d)", () => {
     // into its own clear corner first: the quiz note drags down, the draft
     // note drags up.
     for (const noteTitle of ["Quiz 1 prep", "Lecture 1 (draft)"]) {
-      await page.getByRole("button", { name: "Add note" }).click();
+      await openNotePicker(page);
       await expect(
         page.getByRole("heading", { name: "Choose a note" }),
       ).toBeVisible();
@@ -119,9 +124,10 @@ test.describe.serial("canvas (M9 acceptance a–d)", () => {
 
   test("(b) the leader publishes the map", async ({ page }) => {
     await page.goto(harnessPath);
-    await expect(
-      page.getByRole("button", { name: "Add text card" }),
-    ).toBeVisible({ timeout: 16_000 });
+    await mapReady(page);
+    // The publish switch sits in the top toolbar at >= 768 px and in the
+    // phone bar's More sheet below; this reveals it on phones.
+    await openPublishToggle(page);
     // The checkbox's accessible name is its wrapping label, which flips
     // between the two plain-language states.
     const publish = page.getByRole("checkbox", {
@@ -241,11 +247,13 @@ test.describe.serial("canvas (M9 acceptance a–d)", () => {
     }
     await expect(saved).toBeVisible();
 
-    // Fill a fresh map beyond the cap: 21 adds against 20.
+    // Fill a fresh map beyond the cap: 21 adds against 20. The keyboard N
+    // shortcut (spec 6.3) adds a card at any width; the toolbar add is
+    // width-split (top toolbar on desktop, Add sheet on phones) and this
+    // test only needs the count.
     await createMap(page, `Card cap — ${testInfo.project.name}`);
-    const add = page.getByRole("button", { name: "Add text card" });
     for (let i = 0; i < CARD_LIMIT + 1; i++) {
-      await add.click();
+      await page.keyboard.press("n");
     }
     // The RPC refuses the batch and the server action maps the error to
     // plain language; the editor shows it under the toolbar (role=alert).

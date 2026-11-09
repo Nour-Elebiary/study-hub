@@ -6,6 +6,7 @@ import {
   LEADER_STATE_PATH,
   PUBLISHED_NOTE_ID,
   WCAG_TAGS,
+  addTextCard,
   card,
   createMap,
   expectNoSeriousViolations,
@@ -66,9 +67,13 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
       .not.toBe(secondBefore);
 
     // Connect (QUESTIONS 53): L starts linking from the selected card.
+    // exact: true — the same message also shows in the visible bottom
+    // toast next to Undo; the sr-only live region announces it verbatim.
     await page.keyboard.press("l");
     await expect(
-      page.getByText("Linking: Tab to the second card and press Enter"),
+      page.getByText("Linking: Tab to the second card and press Enter", {
+        exact: true,
+      }),
     ).toBeVisible();
     // Tab roves focus to the other card; Enter links the two cards.
     await page.keyboard.press("Tab");
@@ -127,7 +132,7 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
       page,
       `M10 palette -- ${testInfo.project.name}`,
     );
-    await page.getByRole("button", { name: "Add text card" }).click();
+    await addTextCard(page);
     await expect(card(page, "Write here…")).toBeVisible({ timeout: 10_000 });
 
     // Ctrl/Cmd+K opens the palette (spec 6.7); the toolbar Search button
@@ -261,21 +266,24 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
     );
     const node = page.locator(".react-flow__node");
 
-    await page.getByRole("button", { name: "Add text card" }).click();
+    await addTextCard(page);
     await expect(node).toHaveCount(1, { timeout: 10_000 });
-    await page.getByRole("button", { name: "Add text card" }).click();
+    await addTextCard(page);
     await expect(node).toHaveCount(2, { timeout: 10_000 });
 
-    // Toggle link mode from the phone bar, then tap tap.
+    // Toggle link mode from the phone bar, then tap tap. The announce
+    // text also renders in the bottom toast (with Undo), so the live
+    // region is matched with exact: true.
     await page.getByRole("button", { name: "Connect" }).tap();
     await expect(
       page.getByText(
         "Link mode: tap the first card, then the card it links to",
+        { exact: true },
       ),
     ).toBeVisible();
     await node.first().tap();
     await expect(
-      page.getByText("Linking: now tap the card it links to"),
+      page.getByText("Linking: now tap the card it links to", { exact: true }),
     ).toBeVisible();
     await node.nth(1).tap();
     await expect(page.locator(".react-flow__edge")).toHaveCount(1, {

@@ -134,6 +134,54 @@ export async function dragCard(
   await page.mouse.up();
 }
 
+/**
+ * Waits until the editor is mounted. The labelled "Map: <title>" region
+ * (spec 6.9) renders as soon as the client editor mounts, at every width —
+ * unlike the toolbar buttons, which are split by width (top toolbar on
+ * desktop, the phone bar below 768 px).
+ */
+export async function mapReady(page: Page) {
+  await expect(page.getByRole("region", { name: /^Map: / })).toBeVisible({
+    timeout: 16_000,
+  });
+}
+
+/**
+ * Adds one text card. The top toolbar's "Add text card" exists only at
+ * >= 768 px (Toolbar is max-md:hidden); the phone bar's Add sheet is the
+ * same action below that.
+ */
+export async function addTextCard(page: Page) {
+  const top = page.getByRole("button", { name: "Add text card" });
+  if (await top.isVisible()) {
+    await top.click();
+    return;
+  }
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("button", { name: "Text", exact: true }).click();
+}
+
+/** Opens the note picker, the same way on both widths. */
+export async function openNotePicker(page: Page) {
+  const top = page.getByRole("button", { name: "Add note" });
+  if (await top.isVisible()) {
+    await top.click();
+    return;
+  }
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("button", { name: "Note", exact: true }).click();
+}
+
+/**
+ * Reveals the publish toggle: it lives in the top toolbar at >= 768 px and
+ * in the phone bar's More sheet below; the caller then uses the same
+ * checkbox locator on both widths.
+ */
+export async function openPublishToggle(page: Page) {
+  const more = page.getByRole("button", { name: "More", exact: true });
+  if (await more.isVisible()) await more.click();
+}
+
 /** Waits out the 800 ms save debounce, then confirms the batch was saved. */
 export async function expectSaved(page: Page) {
   await page.waitForTimeout(900);
@@ -172,9 +220,8 @@ export async function createMap(page: Page, title: string): Promise<string> {
   await expect(page).toHaveURL(/\/canvas\/[0-9a-f-]+$/, {
     timeout: 16_000,
   });
-  // The editor loads behind a dynamic client loader; wait for its toolbar.
-  await expect(page.getByRole("button", { name: "Add text card" })).toBeVisible(
-    { timeout: 16_000 },
-  );
+  // The editor loads behind a dynamic client loader; the labelled map
+  // region is its width-independent mount signal.
+  await mapReady(page);
   return new URL(page.url()).pathname;
 }

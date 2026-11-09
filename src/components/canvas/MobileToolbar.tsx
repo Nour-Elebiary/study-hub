@@ -53,7 +53,7 @@ export default function MobileToolbar(props: MobileToolbarProps) {
   return (
     <>
       <div
-        className="bg-background fixed inset-x-0 bottom-0 z-30 border-t"
+        className="bg-background fixed inset-x-0 bottom-0 z-30 border-t md:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="flex items-center justify-center py-1">
