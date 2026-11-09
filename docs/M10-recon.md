@@ -28,3 +28,23 @@ repository, with paths and line numbers as evidence.
 | V2  | event handlers on ReactFlow wrapper    | Keydown handled on the flow wrapper div + document-level `Ctrl+S`/palette keys guarded by "is editable target".                                   |
 | V3  | "the server returns rev" focus refetch | `getCanvasRev` — a new cheap DAL/CRM action wrapping the existing `canvas` select returning only `rev`; added in M10 (spec §6.4 says to call it). |
 | V4  | cmdk dependency                        | Not installed yet; `docs/FREE_TIER.md` row added in the same commit that adds it (MIT, verified 2026-11-05).                                      |
+
+## What M10 built (implementation notes)
+
+| #   | Question / decision                                                                        | Where it lives                                                                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B1  | Keyboard connect — spec §6.3 has no connect binding but §6.11 demands a keyboard-only flow | `L` starts linking from the single selected card, Tab roves, Enter completes, Esc cancels; reuses the touch connect state. QUESTIONS 53; `shortcuts.ts` (`start-link`), `CanvasEditor` keydown |
+| B2  | "Draw a file from the left drawer" (spec §6.2/§6.11)                                       | The drawer was never built; the Add → Note/File picker + OS drag-drop covers the outcome. QUESTIONS 54; the e2e covers "drop a file from the computer"                                         |
+| B3  | Thumbnail in-flight cap (spec §6.10)                                                       | `src/lib/canvas/thumbnail-queue.ts` semaphore of 6 signed-URL requests; release TRANSFERS the slot to the oldest waiter (never re-counts)                                                      |
+| B4  | Card re-render budget (spec §6.10)                                                         | `React.memo` on `CanvasNode` + the card body in a `useMemo` keyed by the node's own version/detailed/leader/title                                                                              |
+| B5  | Tidy arrangement (spec §6.2)                                                               | `tidyCards` rows-style tidy in `geometry.ts`; Toolbar "Arrange" menu (align 6 modes snapped to grid, distribute rounds-only, tidy selection); mobile More → "Tidy up"                          |
+| B6  | `?` shortcut sheet                                                                         | `ShortcutsSheet.tsx`, a native `<dialog>` rendered from `CANVAS_SHORTCUTS` so the table cannot drift from the real key handling                                                                |
+| B7  | e2e helper reuse                                                                           | `tests/e2e/canvas-helpers.ts` holds the shared constants + drag/connect/axe helpers; `canvas.spec.ts` and `canvas-m10.spec.ts` both import them                                                |
+
+### React-compiler gotchas hit (for future slices)
+
+- A `useCallback` declared BEFORE the `useRef` it captures freezes that ref
+  ("This value cannot be modified" at every later write) — keep callbacks that
+  use `flowRef` below its declaration.
+- JSX inside an IIFE part of the tree runs at render time; compute the data
+  (e.g. `menuCard`) before `return`.

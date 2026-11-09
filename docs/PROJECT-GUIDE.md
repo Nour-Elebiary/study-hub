@@ -311,10 +311,16 @@ _Layout skeleton (verified by measurement at 360 / 768 / 1024 / 1280 px):_
   per-map open/delete/restore, Make default, and the publish badge. Everyone
   in the course may edit maps; publishing is what students read.
 - **`/courses/[courseId]/canvas/[canvasId]`** — the map editor: text / note /
-  file / group cards, drag + connect arrows, colours + picture legend,
-  publish switch ("Students can see"), a Saved chip, and automatic backups
-  written per save batch (`Backups` → restore an older version). Saves go
-  through ≤200-op op batches, not per-keystroke calls.
+  file / group cards, drag + connect arrows (phone: tap‑tap Connect mode),
+  colours + picture legend, publish switch ("Students can see"), a Saved chip
+  (Saving/Offline/Could not save + retry), and automatic backups written per
+  save batch (`Backups` → restore an older version). M10 adds the side pane
+  (docked ≥1280 px, drawer 768–1279 px, full-screen sheet on phones) sharing
+  the note soft lock, full keyboard support with the `?` shortcut sheet, the
+  Ctrl/Cmd+K command palette, undo/redo, copy/paste/duplicate, layers, groups,
+  the Arrange menu and long-press/right-click card menus. Saves go through
+  ≤200-op op batches (offline queue pauses and recovers), not per-keystroke
+  calls.
 
 ### Student app (`/s/*` — no login, cookie only)
 
@@ -603,8 +609,12 @@ shuts down cleanly on Ctrl-C.
   disabling RLS or a test to make something work.
 - **Playwright e2e**: 31-page walkthrough coverage + the M9 canvas acceptance
   specs (`tests/e2e/canvas.spec.ts`, acceptance a–d, run twice — mobile 360 px
-  and desktop), mobile 360 px viewports, keyboard and axe accessibility
-  checks, offline PWA test (against a production build), join-code and
+  and desktop) + the M10 interaction flows (`tests/e2e/canvas-m10.spec.ts`,
+  shared helpers in `tests/e2e/canvas-helpers.ts`: keyboard-only flow, file
+  drop, side-pane lock across two contexts, palette, touch Connect, offline
+  recovery; QUESTIONS 53/54 cover the two spec gaps), mobile 360 px viewports,
+  keyboard and axe accessibility checks, offline PWA test (against a
+  production build), join-code and
   password-gate journeys; the leader's stable session comes from the
   `leader-setup` project (there is a matching `student-setup`).
 - **Pre-deploy scripts**: `scripts/load-test.mjs` (traffic soak),
