@@ -35,6 +35,7 @@ import Toolbar from "./Toolbar";
 import MobileToolbar from "./MobileToolbar";
 import LegendEditor from "./LegendEditor";
 import VersionsSheet from "./VersionsSheet";
+import ShortcutsSheet from "./ShortcutsSheet";
 import { CommandPalette, type PaletteCard } from "./CommandPalette";
 import { CanvasProvider, type CanvasContextValue } from "./editor-context";
 import { applyOps, invertOps, defaultSizeOf } from "@/lib/canvas/ops";
@@ -49,11 +50,14 @@ import {
 } from "@/lib/canvas/history";
 import { SaveQueue, type SaveStatus } from "@/lib/canvas/save-queue";
 import {
+  alignCards,
   cardsInsideGroup,
+  distributeCards,
   nearestSide,
   snap,
   tidyCards,
   unionRect,
+  type AlignMode,
 } from "@/lib/canvas/geometry";
 import {
   CARD_KINDS,
@@ -223,6 +227,9 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
   const [toast, setToast] = useState<string | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  // The `?` shortcut sheet (spec 6.3) — a native dialog, so Escape closes
+  // it itself; the key handler below opens it, the chain closes it first.
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const flowRef = useRef<ReactFlowInstance<RfNode, RfEdge> | null>(null);
   // Undo/redo history (spec 6.4): every user action is one entry.
   const historyRef = useRef<HistoryState>(emptyHistory());
@@ -733,6 +740,67 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     },
     [commit, selectedCardIds],
   );
+
+  // --------------------------------------------------------------------------
+  // Arrange: align / distribute / tidy the selection (spec 6.2 toolbar row)
+  // --------------------------------------------------------------------------
+  /** Applies a geometry result as one undoable batch of node.update ops. */
+  const applyPositions = useCallback(
+    (
+      positions: Record<string, { x: number; y: number }>,
+      toGrid: boolean,
+      done: string,
+    ) => {
+      const ops: CanvasOp[] = [];
+      for (const [id, pos] of Object.entries(positions)) {
+        const card = stateRef.current.cards[id];
+        if (!card) continue;
+        // Align keeps the 20 px grid; distribute rounds only — snapping an
+        // even spread would bend the spacing (spec 6.10-tested geometry).
+        const x = toGrid ? roundPos(pos.x) : Math.round(pos.x);
+        const y = toGrid ? roundPos(pos.y) : Math.round(pos.y);
+        if (x === card.x && y === card.y) continue;
+        ops.push({ op: "node.update", id, x, y });
+      }
+      if (ops.length === 0) return;
+      commit(ops);
+      announce(done);
+    },
+    [announce, commit, roundPos],
+  );
+
+  /** Aligns the selection to its shared bounding rectangle (spec 6.2). */
+  const alignSelected = useCallback(
+    (mode: AlignMode) => {
+      const boxes = selectedCardIds
+        .map((id) => stateRef.current.cards[id])
+        .filter((card): card is CanvasCard => Boolean(card));
+      if (boxes.length < 2) return;
+      applyPositions(alignCards(boxes, mode), true, "Cards aligned");
+    },
+    [applyPositions, selectedCardIds],
+  );
+
+  /** Spreads the selection evenly on one axis; the extremes stay put. */
+  const distributeSelected = useCallback(
+    (axis: "x" | "y") => {
+      const boxes = selectedCardIds
+        .map((id) => stateRef.current.cards[id])
+        .filter((card): card is CanvasCard => Boolean(card));
+      if (boxes.length < 3) return;
+      applyPositions(distributeCards(boxes, axis), false, "Cards spread out");
+    },
+    [applyPositions, selectedCardIds],
+  );
+
+  /** Packs the selection into reading-order rows (Keep tidy selection). */
+  const tidySelection = useCallback(() => {
+    const boxes = selectedCardIds
+      .map((id) => stateRef.current.cards[id])
+      .filter((card): card is CanvasCard => Boolean(card));
+    if (boxes.length < 2) return;
+    applyPositions(tidyCards(boxes), true, "Selection tidied");
+  }, [applyPositions, selectedCardIds]);
 
   /** Copies of the cards (+ edges between them) shifted one grid step. */
   const buildDuplicateOps = useCallback(
@@ -1533,12 +1601,22 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
           setLegendOpen(false);
         } else if (versionsOpen) {
           setVersionsOpen(false);
+        } else if (shortcutsOpen) {
+          setShortcutsOpen(false);
         } else {
           clearSelection();
         }
         return;
       }
       if (mod || event.altKey) return;
+      if (key === "?") {
+        // The plain-language shortcut sheet, generated from the same data
+        // as the key handling (spec 6.3). Shift is required to type it on
+        // most layouts, which the event carries anyway.
+        event.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
       if (key === "n") {
         event.preventDefault();
         addCard("text", { body: "Write here…" });
@@ -1601,6 +1679,7 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
     removeCards,
     selectedCardIds,
     setAllSelected,
+    shortcutsOpen,
     tabTo,
     tidyAll,
     undo,
@@ -1912,6 +1991,9 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         selectedCardIds={selectedCardIds}
         onRecolour={recolourSelected}
         onRemoveSelected={() => removeCards(selectedCardIds)}
+        onAlign={alignSelected}
+        onDistribute={distributeSelected}
+        onTidySelection={tidySelection}
         legend={payload.legend}
         onOpenLegend={() => setLegendOpen(true)}
         onOpenVersions={() => setVersionsOpen(true)}
@@ -2105,6 +2187,10 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
           router.refresh();
         }}
       />
+      <ShortcutsSheet
+        open={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
+      />
 
       {payload.currentUserId !== null ? (
         <CommandPalette
@@ -2208,6 +2294,7 @@ function CanvasEditor({ payload }: { payload: CanvasPayload }) {
         canUndo={canUndo}
         canRedo={canRedo}
         onFit={fitAll}
+        onTidyAll={tidyAll}
         selectedCount={selectedCardIds.length}
         onRemoveSelected={() => removeCards(selectedCardIds)}
         legend={payload.legend}

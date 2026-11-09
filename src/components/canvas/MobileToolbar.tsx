@@ -28,6 +28,8 @@ export type MobileToolbarProps = {
   canUndo: boolean;
   canRedo: boolean;
   onFit: () => void;
+  /** Pack every card into reading-order rows (spec 6.2 More → Tidy up). */
+  onTidyAll: () => void;
   selectedCount: number;
   onRemoveSelected: () => void;
   legend: Record<string, string>;
@@ -147,6 +149,10 @@ export default function MobileToolbar(props: MobileToolbarProps) {
               <SheetButton
                 label="Legend"
                 onClick={() => run(props.onOpenLegend)}
+              />
+              <SheetButton
+                label="Tidy up"
+                onClick={() => run(props.onTidyAll)}
               />
               <SheetButton
                 label="Backups"
