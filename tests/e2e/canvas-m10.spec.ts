@@ -11,6 +11,7 @@ import {
   createMap,
   expectNoSeriousViolations,
   expectSaved,
+  savedChip,
 } from "./canvas-helpers";
 
 /**
@@ -307,7 +308,7 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
     );
 
     // A clean state first: the chip says Saved.
-    await expect(page.getByText(/^Saved$/)).toBeVisible({ timeout: 16_000 });
+    await expect(savedChip(page)).toBeVisible({ timeout: 16_000 });
 
     // Go offline; the queue pauses and explains in plain language
     // (spec 6.4: "You are offline. Your changes are kept …").
@@ -338,7 +339,7 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
     // Recovery: back online the queue flushes and the chip returns to
     // Saved; the banner disappears.
     await page.context().setOffline(false);
-    await expect(page.getByText(/^Saved$/)).toBeVisible({ timeout: 16_000 });
+    await expect(savedChip(page)).toBeVisible({ timeout: 16_000 });
     await expect(
       page.getByText(
         "You are offline. Your changes are kept on this page until you are back.",

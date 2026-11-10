@@ -182,10 +182,19 @@ export async function openPublishToggle(page: Page) {
   if (await more.isVisible()) await more.click();
 }
 
+/**
+ * The save chip, resolved through the accessibility tree. Text locators
+ * would match BOTH toolbars' chips (each width hides one with a Tailwind
+ * breakpoint class, but hidden elements still hold text); role locators
+ * only see the element the width does not hide.
+ */
+export const savedChip = (page: Page): Locator =>
+  page.getByRole("status").filter({ hasText: /^Saved$/ });
+
 /** Waits out the 800 ms save debounce, then confirms the batch was saved. */
 export async function expectSaved(page: Page) {
   await page.waitForTimeout(900);
-  await expect(page.getByText(/^Saved$/)).toBeVisible({ timeout: 16_000 });
+  await expect(savedChip(page)).toBeVisible({ timeout: 16_000 });
 }
 
 /**
