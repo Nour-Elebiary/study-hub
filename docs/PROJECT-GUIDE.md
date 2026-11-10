@@ -504,9 +504,10 @@ purpose prefix** — the app never stores a raw IP (privacy rule).
 Both canvas maxima are settings keys (`rate_canvas_ops_per_minute`,
 `rate_canvas_create_per_hour` — section 13), because constitution rule 8 keeps
 limits out of code; every other purpose stays a spec constant. The local/CI
-seed raises both (200 maps/hour, 480 batches/minute) because the whole e2e run
-shares one IP in one hour and every map test creates a map — retries would
-otherwise trip the production budget.
+seed raises both (200 maps/hour, 480 batches/minute) — and
+`max_canvases_per_course` to 60 — because the whole e2e run shares one IP in
+one hour and every map test creates a map onto the same seeded course;
+without headroom the run trips its own budgets and retries would not fit.
 
 A broken limiter **fails closed** (`checkRateLimit` returns false on error) —
 an outage can't become an open door. Join codes themselves are stored

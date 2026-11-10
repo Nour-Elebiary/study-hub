@@ -156,11 +156,14 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
     ).toBeVisible();
 
     // Enter runs the highlighted action: pick the card — the palette
-    // closes and the card becomes the selection (chrome shows the
-    // plain-language selected-card controls).
+    // closes and the card becomes the selection (the plain-language
+    // selected-card controls appear on the card itself; the toolbar shows
+    // a second "Remove from map", so this pins the on-card chip).
     await page.keyboard.press("Enter");
     await expect(
-      page.getByRole("button", { name: "Remove from map" }),
+      card(page, "Write here…").getByRole("button", {
+        name: "Remove from map",
+      }),
     ).toBeVisible({ timeout: 10_000 });
 
     await expectNoSeriousViolations(page, mapPath);

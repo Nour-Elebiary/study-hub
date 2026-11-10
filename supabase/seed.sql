@@ -178,13 +178,16 @@ values (
 ) on conflict (code_hash) do nothing;
 
 -- Limits live in settings (constitution rule 8). Production keeps the spec
--- defaults (20 new maps per hour, 240 edit batches per minute); this local
--- database does not, because the whole e2e run shares one IP and one hour,
--- and every test that opens a map creates one (10 per project, plus every
--- retry). Raising both here leaves headroom for retries without touching
--- the production behaviour.
+-- defaults (20 new maps per hour, 240 edit batches per minute, 20 maps per
+-- course); this local database does not, because the whole e2e run shares
+-- one IP in one hour, every test that opens a map creates one (10 per
+-- project, plus every retry) and the two projects pile them onto the same
+-- seeded course - both zero-headroom budgets would reject late tests
+-- ("Too many new maps", "already has the maximum of 20 maps"). Raising the
+-- three keys here leaves headroom for retries without touching production.
 insert into public.settings (key, value)
 values
   ('rate_canvas_create_per_hour', '200'::jsonb),
-  ('rate_canvas_ops_per_minute', '480'::jsonb)
+  ('rate_canvas_ops_per_minute', '480'::jsonb),
+  ('max_canvases_per_course', '60'::jsonb)
 on conflict (key) do update set value = excluded.value;
