@@ -139,7 +139,11 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
     // Ctrl/Cmd+K opens the palette (spec 6.7); the toolbar Search button
     // opens it for touch.
     await page.keyboard.press("Control+k");
-    const search = page.getByRole("textbox", { name: "Search the map" });
+    // cmdk's Dialog names the whole palette; its input is a combobox, not a
+    // textbox (the accessibility tree shows `combobox "Command palette"`).
+    const search = page
+      .getByRole("dialog", { name: "Command palette" })
+      .getByRole("combobox");
     await expect(search).toBeVisible({ timeout: 10_000 });
 
     // A nonsense query explains itself, then a real search filters to the

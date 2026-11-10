@@ -386,6 +386,21 @@ export const settingsUpdateSchema = z.object({
   storage_limit_mb: z.coerce.number().int().min(100).max(10_000),
   // M9 canvas and later-milestone keys (spec section 10).
   max_canvas_cards: z.coerce.number().int().min(20).max(1000),
+  // Canvas rate limits are settings too (constitution rule 8); defaults are
+  // the spec values (spec section 10: create 20/hour, ops 240/minute).
+  // Optional: older saves omit them and readSettings back-fills the default.
+  rate_canvas_create_per_hour: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(500)
+    .optional(),
+  rate_canvas_ops_per_minute: z.coerce
+    .number()
+    .int()
+    .min(20)
+    .max(2000)
+    .optional(),
   max_canvases_per_course: z.coerce.number().int().min(1).max(100),
   canvas_version_keep_auto: z.coerce.number().int().min(5).max(100),
   canvas_import_max_kb: z.coerce.number().int().min(64).max(4096),

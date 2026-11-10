@@ -44,6 +44,78 @@ const LIMITS: Record<RateLimitPurpose, { max: number; windowSeconds: number }> =
     canvas_create: { max: 20, windowSeconds: 60 * 60 },
   };
 
+/**
+ * Constitution rule 8: limits live in `settings`, not in code. The two
+ * canvas purposes read their max from the settings table (defaults and
+ * ranges mirror the spec values), so an admin can adjust them without a
+ * deploy; every other purpose keeps its spec-mandated constant.
+ */
+const SETTING_LIMITS: Partial<Record<RateLimitPurpose, string>> = {
+  canvas_create: "rate_canvas_create_per_hour",
+  canvas_ops: "rate_canvas_ops_per_minute",
+};
+
+/**
+ * Which max applies for one canvas purpose given the raw settings value.
+ * Anything unusable (missing, not an integer, below 1 — over-limit values
+ * are clamped to the settings range) falls back to the spec default, so a
+ * broken row can never turn a limit off. Pure: tests/unit/rate-limit.test.ts.
+ */
+export function settingMax(
+  purpose: "canvas_create" | "canvas_ops",
+  raw: string | number | null | undefined,
+): number | null {
+  if (raw === null || raw === undefined || raw === "") return null;
+  const n = typeof raw === "number" ? raw : Number(String(raw).trim());
+  if (!Number.isInteger(n) || n < 1) return null;
+  return Math.min(n, purpose === "canvas_ops" ? 2000 : 500);
+}
+
+/** Cached settings reads: `canvas_ops` fires up to 240 times a minute. */
+const SETTING_LIMIT_TTL_MS = 60_000;
+let settingLimitCache: {
+  at: number;
+  values: Map<string, string | number | null>;
+} | null = null;
+
+/** One canvas purpose's settings max, or null for "keep the spec default". */
+async function readSettingLimit(
+  purpose: "canvas_create" | "canvas_ops",
+): Promise<number | null> {
+  const key = SETTING_LIMITS[purpose];
+  if (!key) return null;
+  if (
+    !settingLimitCache ||
+    Date.now() - settingLimitCache.at > SETTING_LIMIT_TTL_MS
+  ) {
+    const keys = Object.values(SETTING_LIMITS) as string[];
+    const values = new Map<string, string | number | null>(
+      keys.map((k) => [k, null]),
+    );
+    try {
+      const admin = createAdminClient();
+      const { data, error } = await admin
+        .from("settings")
+        .select("key, value")
+        .in("key", keys);
+      if (!error) {
+        for (const row of data ?? []) {
+          if (
+            values.has(row.key) &&
+            (typeof row.value === "number" || typeof row.value === "string")
+          ) {
+            values.set(row.key, row.value);
+          }
+        }
+      }
+    } catch {
+      // Leave the defaults — the action itself must still run the limiter.
+    }
+    settingLimitCache = { at: Date.now(), values };
+  }
+  return settingMax(purpose, settingLimitCache.values.get(key) ?? null);
+}
+
 /** The caller's IP from the proxy headers Vercel sets. */
 export function getClientIp(headers: Headers): string {
   const forwarded = headers.get("x-forwarded-for");
@@ -62,7 +134,13 @@ export async function checkRateLimit(
   purpose: RateLimitPurpose,
   ip: string,
 ): Promise<boolean> {
-  const { max, windowSeconds } = LIMITS[purpose];
+  const { windowSeconds } = LIMITS[purpose];
+  const settingKey = SETTING_LIMITS[purpose];
+  const baseMax = LIMITS[purpose].max;
+  const max = settingKey
+    ? ((await readSettingLimit(purpose as "canvas_create" | "canvas_ops")) ??
+      baseMax)
+    : baseMax;
   const key = `${purpose}:${createHmac("sha256", requiredServerEnv("JOIN_COOKIE_SECRET")).update(`${purpose}:${ip}`).digest("hex")}`;
 
   const admin = createAdminClient();

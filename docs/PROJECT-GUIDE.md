@@ -491,15 +491,22 @@ extra service, and the function's `EXECUTE` is revoked from client roles
 (migration `00014`). Keys are **HMAC-SHA-256 hashes of the caller's IP +
 purpose prefix** — the app never stores a raw IP (privacy rule).
 
-| Purpose                         | Limit | Window                                                                       |
-| ------------------------------- | ----- | ---------------------------------------------------------------------------- |
-| `join` (join-code check)        | 5     | per minute                                                                   |
-| `suggest` (student suggestions) | 3     | per hour                                                                     |
-| `login`                         | 5     | per 15 minutes                                                               |
-| `ai_key` (adding keys)          | 5     | per hour                                                                     |
-| `ai_chat`                       | 20    | per minute (the _daily allowance_ in `settings` is the real control)         |
-| `canvas_ops`                    | 240   | per minute (one call per debounced save batch — normal editing is far below) |
-| `canvas_create`                 | 20    | per hour per IP (New map, Generate from course, restore version)             |
+| Purpose                         | Limit | Window                                                                                                   |
+| ------------------------------- | ----- | -------------------------------------------------------------------------------------------------------- |
+| `join` (join-code check)        | 5     | per minute                                                                                               |
+| `suggest` (student suggestions) | 3     | per hour                                                                                                 |
+| `login`                         | 5     | per 15 minutes                                                                                           |
+| `ai_key` (adding keys)          | 5     | per hour                                                                                                 |
+| `ai_chat`                       | 20    | per minute (the _daily allowance_ in `settings` is the real control)                                     |
+| `canvas_ops`                    | 240   | per minute (one call per debounced save batch — normal editing is far below; max is settings-adjustable) |
+| `canvas_create`                 | 20    | per hour per IP (New map, Generate from course, restore version; max is settings-adjustable)             |
+
+Both canvas maxima are settings keys (`rate_canvas_ops_per_minute`,
+`rate_canvas_create_per_hour` — section 13), because constitution rule 8 keeps
+limits out of code; every other purpose stays a spec constant. The local/CI
+seed raises both (200 maps/hour, 480 batches/minute) because the whole e2e run
+shares one IP in one hour and every map test creates a map — retries would
+otherwise trip the production budget.
 
 A broken limiter **fails closed** (`checkRateLimit` returns false on error) —
 an outage can't become an open door. Join codes themselves are stored
@@ -523,6 +530,8 @@ default, min and max; `/admin/settings` edits them; all readers go through
 | `storage_limit_mb`              | 1024        | Free-tier storage ceiling ditto                                   |
 | `max_canvas_cards`              | 300         | Most cards a single map may hold (never below 20)                 |
 | `max_canvases_per_course`       | 20          | Most maps a course may hold                                       |
+| `rate_canvas_create_per_hour`   | 20          | New maps per hour per internet address (section 12)               |
+| `rate_canvas_ops_per_minute`    | 240         | Map edit batches per minute per internet address (section 12)     |
 
 ## 14. Server-side surface: server actions and API routes
 

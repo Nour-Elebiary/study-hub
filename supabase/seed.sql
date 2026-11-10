@@ -176,3 +176,15 @@ values (
   encode(hmac('SEED2026', 'replace-me', 'sha256'), 'hex'),
   'Sample join code for Course A (used by the e2e tests)'
 ) on conflict (code_hash) do nothing;
+
+-- Limits live in settings (constitution rule 8). Production keeps the spec
+-- defaults (20 new maps per hour, 240 edit batches per minute); this local
+-- database does not, because the whole e2e run shares one IP and one hour,
+-- and every test that opens a map creates one (10 per project, plus every
+-- retry). Raising both here leaves headroom for retries without touching
+-- the production behaviour.
+insert into public.settings (key, value)
+values
+  ('rate_canvas_create_per_hour', '200'::jsonb),
+  ('rate_canvas_ops_per_minute', '480'::jsonb)
+on conflict (key) do update set value = excluded.value;
