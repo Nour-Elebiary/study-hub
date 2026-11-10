@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { uuidLike } from "@/lib/canvas/schemas";
 import { getMembership } from "@/lib/course-access";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -93,7 +94,8 @@ export const chatContextSchema = z.object({
   goal: z.string().max(500).default(""),
   task_type: z.enum(AI_TASK_TYPES).default("other"),
   language: z.enum(["en", "ar", "mixed"]).default("en"),
-  note_id: z.uuid().nullish(),
+  // Seed ids (notes, courses) are not RFC UUIDs — see lib/schemas.ts.
+  note_id: uuidLike().nullish(),
   note_title: z.string().max(200).default(""),
   note_body: z.string().max(100_000).default(""),
   excerpts: z.array(excerptSchema).max(5).default([]),
@@ -101,7 +103,7 @@ export const chatContextSchema = z.object({
 
 export const chatRequestSchema = z.object({
   conversation_id: z.uuid().optional(),
-  course_id: z.uuid().nullish(),
+  course_id: uuidLike().nullish(),
   message: z.string().trim().min(1).max(8_000),
   context: chatContextSchema.optional(),
 });
@@ -109,7 +111,7 @@ export const chatRequestSchema = z.object({
 export type ChatContext = z.infer<typeof chatContextSchema>;
 
 export const taskRequestSchema = z.object({
-  course_id: z.uuid().nullish(),
+  course_id: uuidLike().nullish(),
   prompt: z.string().trim().min(1).max(8_000),
   context: chatContextSchema.optional(),
 });
