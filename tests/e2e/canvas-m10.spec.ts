@@ -11,6 +11,7 @@ import {
   createMap,
   expectNoSeriousViolations,
   expectSaved,
+  openNotePicker,
   savedChip,
 } from "./canvas-helpers";
 
@@ -181,7 +182,7 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
 
     // Context A holds the lock: add the seeded published note card and
     // open it in the side pane.
-    await page.getByRole("button", { name: "Add note" }).click();
+    await openNotePicker(page);
     await expect(
       page.getByRole("heading", { name: "Choose a note" }),
     ).toBeVisible();
@@ -196,7 +197,13 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
     // Context B: the second seeded leader signs in (clearing its forced
     // first-sign-in password change on a fresh database; on a warmed local
     // database the already-changed password signs straight in).
-    const contextB = await browser.newContext();
+    // Context B must be truly signed out: a bare newContext() inherits the
+    // file-level test.use storage state (Nour's session), so /login would
+    // just redirect to the home page. An explicit empty storage state
+    // prevents that (Playwright's documented way to opt out).
+    const contextB = await browser.newContext({
+      storageState: { cookies: [], origins: [] },
+    });
     const pageB = await contextB.newPage();
     try {
       await pageB.goto("/login");
