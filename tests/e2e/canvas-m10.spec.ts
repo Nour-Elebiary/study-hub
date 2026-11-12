@@ -35,7 +35,8 @@ import {
  */
 
 const LEADER2_EMAIL = "admin2@studyhub.local";
-const LEADER2_FIRST_PASSWORD = "ChangeMe-Admin-02"; // seeded temporary password
+// The seed gives admin2 its final password right away (no forced
+// first-sign-in change) — see supabase/seed.sql and docs/QUESTIONS.md 58.
 const LEADER2_PASSWORD = "e2e-Leader2-2026";
 
 test.describe.serial("canvas (M10 acceptance flows)", () => {
@@ -194,9 +195,10 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
     await expect(page.getByText("Quiz 1 prep").first()).toBeVisible();
     await page.waitForTimeout(1_500);
 
-    // Context B: the second seeded leader signs in (clearing its forced
-    // first-sign-in password change on a fresh database; on a warmed local
-    // database the already-changed password signs straight in).
+    // Context B: the second seeded admin signs in. The seed gives admin2
+    // its final password with must_change_password already false, so this
+    // is one clean sign-in — both viewport projects run it in parallel and
+    // a forced first-sign-in change would make them race on one account.
     // Context B must be truly signed out: a bare newContext() inherits the
     // file-level test.use storage state (Nour's session), so /login would
     // just redirect to the home page. An explicit empty storage state
@@ -211,45 +213,10 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
         pageB.getByRole("heading", { name: "Sign in" }),
       ).toBeVisible();
       await pageB.getByLabel("Email").fill(LEADER2_EMAIL);
-      await pageB.getByLabel("Password").fill(LEADER2_FIRST_PASSWORD);
+      await pageB.getByLabel("Password").fill(LEADER2_PASSWORD);
       await pageB.getByRole("button", { name: /^Sign in$/ }).click();
-      await pageB
-        .waitForURL(
-          (url) => url.pathname === "/" || url.pathname === "/reset-password",
-          { timeout: 16_000 },
-        )
-        .catch(() => undefined);
-      if (!pageB.url().endsWith("/login")) {
-        // Old password (still) valid — clear the forced change if asked.
-        if (new URL(pageB.url()).pathname === "/reset-password") {
-          await pageB
-            .getByLabel("New password", { exact: true })
-            .fill(LEADER2_PASSWORD);
-          await pageB
-            .getByLabel("Repeat the new password")
-            .fill(LEADER2_PASSWORD);
-          await pageB.getByRole("button", { name: "Save password" }).click();
-          await expect(pageB).toHaveURL(/\/$/, { timeout: 16_000 });
-        }
-      } else {
-        // The seeded temporary password was already changed on a previous
-        // local run — sign in with the stored one.
-        await pageB.getByLabel("Password").fill(LEADER2_PASSWORD);
-        await pageB.getByRole("button", { name: /^Sign in$/ }).click();
-        await expect(pageB).toHaveURL(/\/(reset-password)?$/, {
-          timeout: 16_000,
-        });
-        if (new URL(pageB.url()).pathname === "/reset-password") {
-          await pageB
-            .getByLabel("New password", { exact: true })
-            .fill(LEADER2_PASSWORD);
-          await pageB
-            .getByLabel("Repeat the new password")
-            .fill(LEADER2_PASSWORD);
-          await pageB.getByRole("button", { name: "Save password" }).click();
-          await expect(pageB).toHaveURL(/\/$/, { timeout: 16_000 });
-        }
-      }
+      // The action redirects to "/" for a ready account.
+      await expect(pageB).toHaveURL(/\/$/, { timeout: 30_000 });
 
       await pageB.goto(`/courses/${COURSE_A}/nodes/${PUBLISHED_NOTE_ID}/edit`);
       // The lock banner names the holder, in plain language (spec 6.6):

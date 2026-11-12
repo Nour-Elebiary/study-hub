@@ -651,10 +651,15 @@ shuts down cleanly on Ctrl-C.
 - `bbbbbbbb-…` — admin2, "Backup admin" (`admin2@studyhub.local`): in the hosted
   copy the password was changed to `Blue-Otter-42x` (the seed default
   `ChangeMe-Admin-02` no longer works), `tour_done = true`,
-  `must_change_password = false`.
-  ⚠️ The seed passwords `ChangeMe-Admin-01/02` are **no longer valid** on the
-  hosted project after the walkthrough changed admin2's password. There are no
-  other seeded auth users — leader accounts used in tests were created live.
+  `must_change_password = false`. In the **local/CI** seed admin2 also gets its
+  final password right away — `e2e-Leader2-2026`, `must_change_password = false`
+  — because the M10 lock test signs in as admin2 from both viewport projects in
+  parallel and a forced first-sign-in change would make them race on one account
+  (docs/QUESTIONS.md 58).
+  ⚠️ The seed password `ChangeMe-Admin-01` (Nour's temporary password) is **no
+  longer valid** on the hosted project after the walkthrough changed admin2's
+  password. There are no other seeded auth users — leader accounts used in
+  tests were created live.
 
 **Seed content**: two courses (`cccccccc-…01/02`, codes `COURSE-A` and
 `COURSE-B`), three nodes (`eeeeeeee-…01/02/03`) — the first is a published
