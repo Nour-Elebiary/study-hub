@@ -32,7 +32,8 @@ export type RateLimitPurpose =
 // burst cap per IP; the fair-use daily allowance per leader is the real
 // control (spec section 8). Canvas ops (spec section 10, M9): 240 batches
 // per minute keeps up with dragging; 20 new maps per hour per IP stops a
-// runaway "generate" loop.
+// runaway "generate" loop. The login and canvas limits are settings keys
+// (constitution rule 8); the defaults here are the chosen spec values.
 const LIMITS: Record<RateLimitPurpose, { max: number; windowSeconds: number }> =
   {
     join: { max: 5, windowSeconds: 60 },
@@ -51,9 +52,13 @@ const LIMITS: Record<RateLimitPurpose, { max: number; windowSeconds: number }> =
  * deploy; every other purpose keeps its spec-mandated constant.
  */
 const SETTING_LIMITS: Partial<Record<RateLimitPurpose, string>> = {
+  login: "rate_login_per_15_min",
   canvas_create: "rate_canvas_create_per_hour",
   canvas_ops: "rate_canvas_ops_per_minute",
 };
+
+/** Every purpose whose max can come from settings. */
+type SettingLimitedPurpose = keyof typeof SETTING_LIMITS;
 
 /**
  * Which max applies for one canvas purpose given the raw settings value.
@@ -62,13 +67,15 @@ const SETTING_LIMITS: Partial<Record<RateLimitPurpose, string>> = {
  * broken row can never turn a limit off. Pure: tests/unit/rate-limit.test.ts.
  */
 export function settingMax(
-  purpose: "canvas_create" | "canvas_ops",
+  purpose: SettingLimitedPurpose,
   raw: string | number | null | undefined,
 ): number | null {
   if (raw === null || raw === undefined || raw === "") return null;
   const n = typeof raw === "number" ? raw : Number(String(raw).trim());
   if (!Number.isInteger(n) || n < 1) return null;
-  return Math.min(n, purpose === "canvas_ops" ? 2000 : 500);
+  const clamp =
+    purpose === "canvas_ops" ? 2000 : purpose === "login" ? 100 : 500;
+  return Math.min(n, clamp);
 }
 
 /** Cached settings reads: `canvas_ops` fires up to 240 times a minute. */
@@ -80,7 +87,7 @@ let settingLimitCache: {
 
 /** One canvas purpose's settings max, or null for "keep the spec default". */
 async function readSettingLimit(
-  purpose: "canvas_create" | "canvas_ops",
+  purpose: SettingLimitedPurpose,
 ): Promise<number | null> {
   const key = SETTING_LIMITS[purpose];
   if (!key) return null;
@@ -138,8 +145,7 @@ export async function checkRateLimit(
   const settingKey = SETTING_LIMITS[purpose];
   const baseMax = LIMITS[purpose].max;
   const max = settingKey
-    ? ((await readSettingLimit(purpose as "canvas_create" | "canvas_ops")) ??
-      baseMax)
+    ? ((await readSettingLimit(purpose as SettingLimitedPurpose)) ?? baseMax)
     : baseMax;
   const key = `${purpose}:${createHmac("sha256", requiredServerEnv("JOIN_COOKIE_SECRET")).update(`${purpose}:${ip}`).digest("hex")}`;
 

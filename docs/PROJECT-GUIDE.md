@@ -495,19 +495,22 @@ purpose prefix** — the app never stores a raw IP (privacy rule).
 | ------------------------------- | ----- | -------------------------------------------------------------------------------------------------------- |
 | `join` (join-code check)        | 5     | per minute                                                                                               |
 | `suggest` (student suggestions) | 3     | per hour                                                                                                 |
-| `login`                         | 5     | per 15 minutes                                                                                           |
+| `login`                         | 5     | per 15 minutes (max is settings-adjustable)                                                              |
 | `ai_key` (adding keys)          | 5     | per hour                                                                                                 |
 | `ai_chat`                       | 20    | per minute (the _daily allowance_ in `settings` is the real control)                                     |
 | `canvas_ops`                    | 240   | per minute (one call per debounced save batch — normal editing is far below; max is settings-adjustable) |
 | `canvas_create`                 | 20    | per hour per IP (New map, Generate from course, restore version; max is settings-adjustable)             |
 
-Both canvas maxima are settings keys (`rate_canvas_ops_per_minute`,
+The login and both canvas maxima are settings keys
+(`rate_login_per_15_min`, `rate_canvas_ops_per_minute`,
 `rate_canvas_create_per_hour` — section 13), because constitution rule 8 keeps
 limits out of code; every other purpose stays a spec constant. The local/CI
-seed raises both (200 maps/hour, 480 batches/minute) — and
-`max_canvases_per_course` to 60 — because the whole e2e run shares one IP in
-one hour and every map test creates a map onto the same seeded course;
-without headroom the run trips its own budgets and retries would not fit.
+seed raises all three (100 sign-ins/15 min, 200 maps/hour, 480
+batches/minute) — and `max_canvases_per_course` to 60 — because the whole
+e2e run shares one IP: every sign-in (setup projects, the admin flow, the
+side-pane lock test's password handling, retries) burns one login attempt,
+and every map test creates a map onto the same seeded course; without
+headroom the run trips its own budgets and retries would not fit.
 
 A broken limiter **fails closed** (`checkRateLimit` returns false on error) —
 an outage can't become an open door. Join codes themselves are stored
@@ -531,6 +534,7 @@ default, min and max; `/admin/settings` edits them; all readers go through
 | `storage_limit_mb`              | 1024        | Free-tier storage ceiling ditto                                   |
 | `max_canvas_cards`              | 300         | Most cards a single map may hold (never below 20)                 |
 | `max_canvases_per_course`       | 20          | Most maps a course may hold                                       |
+| `rate_login_per_15_min`         | 5           | Sign-in attempts per 15 minutes per internet address (section 12) |
 | `rate_canvas_create_per_hour`   | 20          | New maps per hour per internet address (section 12)               |
 | `rate_canvas_ops_per_minute`    | 240         | Map edit batches per minute per internet address (section 12)     |
 

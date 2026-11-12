@@ -53,5 +53,13 @@ describe("settingMax (canvas rate limits read from settings, rule 8)", () => {
   it("clamps to the settings screen ranges", () => {
     expect(settingMax("canvas_create", 100_000)).toBe(500);
     expect(settingMax("canvas_ops", 100_000)).toBe(2000);
+    expect(settingMax("login", 100_000)).toBe(100);
+  });
+
+  it("reads the login limit from settings (rule 8; raised in seed.sql)", () => {
+    expect(settingMax("login", 5)).toBe(5);
+    expect(settingMax("login", "100")).toBe(100);
+    expect(settingMax("login", null)).toBeNull(); // keep the default 5
+    expect(settingMax("login", 0)).toBeNull(); // 0 would disable the limit
   });
 });

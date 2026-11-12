@@ -386,9 +386,11 @@ export const settingsUpdateSchema = z.object({
   storage_limit_mb: z.coerce.number().int().min(100).max(10_000),
   // M9 canvas and later-milestone keys (spec section 10).
   max_canvas_cards: z.coerce.number().int().min(20).max(1000),
-  // Canvas rate limits are settings too (constitution rule 8); defaults are
-  // the spec values (spec section 10: create 20/hour, ops 240/minute).
-  // Optional: older saves omit them and readSettings back-fills the default.
+  // Canvas and login rate limits are settings too (constitution rule 8);
+  // defaults are the chosen values (spec section 10 for canvas, docs/
+  // QUESTIONS.md 11 for login). Optional: older saves omit them and
+  // readSettings back-fills the default.
+  rate_login_per_15_min: z.coerce.number().int().min(1).max(100).optional(),
   rate_canvas_create_per_hour: z.coerce
     .number()
     .int()

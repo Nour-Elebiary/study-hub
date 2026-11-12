@@ -122,6 +122,15 @@ export const SETTING_DEFS: SettingDef[] = [
     max: 2000,
   },
   {
+    key: "rate_login_per_15_min",
+    label: "Sign-in attempts per 15 minutes per internet address",
+    hint: "Slows password guessing. Normal staff sign in far less often. Default 5.",
+    kind: "number",
+    defaultValue: 5,
+    min: 1,
+    max: 100,
+  },
+  {
     key: "max_canvases_per_course",
     label: "Most maps per course",
     hint: "A course cannot have more maps than this.",
