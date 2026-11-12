@@ -263,7 +263,12 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
         { exact: true },
       ),
     ).toBeVisible();
-    await node.first().tap();
+    // Both fresh cards stack with only a 24 px down-right stagger (the add
+    // flow jitters every new card), so card 1's centre is covered by card 2
+    // and a centred tap is intercepted (trace-verified: "subtree intercepts
+    // pointer events"). Later cards always shift down-right, so card 1's
+    // top-left corner is never covered — tap there.
+    await node.first().tap({ position: { x: 12, y: 12 } });
     await expect(
       page.getByText("Linking: now tap the card it links to", { exact: true }),
     ).toBeVisible();
