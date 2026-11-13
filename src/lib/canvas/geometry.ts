@@ -188,3 +188,59 @@ export function distributeCards(
   }
   return positions;
 }
+
+/**
+ * "Tidy up" (spec 6.7): packs every card into rows that follow the reading
+ * order (top rows first, then left to right), keeping roughly the map's
+ * current width. Sizes never change; the caller turns the result into
+ * node.update ops. Group frames are packed after the plain cards so the
+ * rewrapped members are not covered mid-pack.
+ */
+export function tidyCards(
+  boxes: CardBox[],
+  maxWidth: number = 1200,
+): Record<string, { x: number; y: number }> {
+  const positions: Record<string, { x: number; y: number }> = {};
+  if (boxes.length === 0) return positions;
+  const bounds = unionRect(boxes);
+  const budget = Math.max(bounds ? bounds.width : 0, maxWidth);
+  const gap = GRID_SIZE * 2;
+  // Reading order: 100 px row bands top-down, then left-to-right (same
+  // as the Tab walk in the editor). Groups go last.
+  const isPlain = <T extends CardBox & { kind?: string }>(box: T): boolean =>
+    !("kind" in box) || box.kind !== "group";
+  const plain = boxes.filter(isPlain);
+  const groups = boxes.filter((box) => !isPlain(box));
+  const rowBand = GRID_SIZE * 5;
+  const byReadingOrder = (list: CardBox[]): CardBox[] =>
+    [...list].sort(
+      (a, b) =>
+        Math.round(a.y / rowBand) - Math.round(b.y / rowBand) ||
+        a.x - b.x ||
+        a.id.localeCompare(b.id),
+    );
+  const originX = bounds ? bounds.left : 0;
+  const originY = bounds ? bounds.top : 0;
+  let cursorX = originX;
+  let cursorY = originY;
+  let rowHeight = 0;
+  const pack = (list: readonly CardBox[]) => {
+    for (const box of list) {
+      if (rowHeight > 0 && cursorX + box.width > originX + budget) {
+        // Row is full — start on the next line.
+        cursorX = originX;
+        cursorY += rowHeight + gap;
+        rowHeight = 0;
+      }
+      positions[box.id] = { x: cursorX, y: cursorY };
+      cursorX += box.width + gap;
+      rowHeight = Math.max(rowHeight, box.height);
+    }
+  };
+  pack(byReadingOrder(plain));
+  cursorX = originX;
+  cursorY += rowHeight === 0 ? 0 : rowHeight + gap;
+  rowHeight = 0;
+  pack(byReadingOrder(groups));
+  return positions;
+}

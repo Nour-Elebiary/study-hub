@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { uuidLike } from "@/lib/canvas/schemas";
 
 /**
  * The jobs queue (spec sections 5 and 7). Pure constants and schemas shared
@@ -272,7 +273,9 @@ export function assetEligibleForTool(
 }
 
 export const createJobSchema = z.object({
-  course_id: z.uuid(),
+  // Seed course ids are deliberately not RFC UUIDs (QUESTIONS #19, #49) —
+  // PostgreSQL accepts them; the strict z.uuid() format does not.
+  course_id: uuidLike(),
   type: z.enum(JOB_TYPES),
   input_asset_id: z.uuid(),
   params: jobParamsSchema,

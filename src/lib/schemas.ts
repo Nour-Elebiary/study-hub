@@ -1,6 +1,17 @@
 import { z } from "zod";
 import { uuidLike } from "@/lib/canvas/schemas";
 
+/*
+ * Id rule (QUESTIONS #19, #49 — see also canvas/schemas.ts): every id that
+ * can name seeded content (courses, notes/nodes, profiles) is validated with
+ * uuidLike, not z.uuid(). zod's z.uuid() additionally enforces the RFC 9562
+ * version and variant nibbles, which the readable seed ids fail
+ * ("Invalid UUID" for every upload into a seeded course — CI run
+ * 42819916170). Postgres accepts any 8-4-4-12 hex; ids it generates itself
+ * (assets, canvases, versions, comments, jobs, suggestions) always satisfy
+ * z.uuid() and keep the stricter check.
+ */
+
 // Spec section 11.1: password minimum 10 characters.
 export const passwordSchema = z.string().min(10, "Use at least 10 characters.");
 
@@ -68,24 +79,24 @@ export const courseCreateSchema = z.object({
     ),
   title: z.string().trim().min(2, "Enter a course title.").max(120),
   semester: z.string().trim().max(40).optional().default(""),
-  owner_id: z.uuid().optional(),
+  owner_id: uuidLike().optional(),
 });
 
 export const courseRenameSchema = z.object({
-  course_id: z.uuid(),
+  course_id: uuidLike(),
   title: z.string().trim().min(2, "Enter a course title.").max(120),
   semester: z.string().trim().max(40).optional().default(""),
 });
 
 export const courseArchiveSchema = z.object({
-  course_id: z.uuid(),
+  course_id: uuidLike(),
   archived: z.boolean(),
 });
 
 export const membershipSchema = z
   .object({
-    course_id: z.uuid(),
-    user_id: z.uuid(),
+    course_id: uuidLike(),
+    user_id: uuidLike(),
     role: courseRoleSchema,
     areas: z.array(contentAreaSchema).min(1, "Pick at least one area."),
     valid_from: z
@@ -111,8 +122,8 @@ export const membershipSchema = z
   );
 
 export const membershipRemoveSchema = z.object({
-  course_id: z.uuid(),
-  user_id: z.uuid(),
+  course_id: uuidLike(),
+  user_id: uuidLike(),
 });
 
 // The admin's own password, typed to confirm a sensitive action.
@@ -136,8 +147,8 @@ export const nodeStatusSchema = z.enum(["draft", "in_review", "published"]);
 export type NodeStatus = z.infer<typeof nodeStatusSchema>;
 
 export const createNodeSchema = z.object({
-  course_id: z.uuid(),
-  parent_id: z.uuid().nullable(),
+  course_id: uuidLike(),
+  parent_id: uuidLike().nullable(),
   area: contentAreaSchema,
   kind: z.enum(["section", "note"]),
   title: z.string().trim().min(1, "Give it a title.").max(160),
@@ -145,29 +156,29 @@ export const createNodeSchema = z.object({
 });
 
 export const renameNodeSchema = z.object({
-  node_id: z.uuid(),
+  node_id: uuidLike(),
   title: z.string().trim().min(1, "Give it a title.").max(160),
 });
 
 export const reorderNodeSchema = z.object({
-  node_id: z.uuid(),
+  node_id: uuidLike(),
   direction: z.enum(["up", "down"]),
 });
 
 export const saveDraftSchema = z.object({
-  node_id: z.uuid(),
+  node_id: uuidLike(),
   body_md: z.string().max(500_000, "This note is too long."),
 });
 
 export const saveVersionSchema = z.object({
-  node_id: z.uuid(),
+  node_id: uuidLike(),
   body_md: z.string().max(500_000, "This note is too long."),
   change_note: z.string().trim().max(300).optional().default(""),
 });
 
 export const setNodeStatusSchema = z
   .object({
-    node_id: z.uuid(),
+    node_id: uuidLike(),
     status: nodeStatusSchema,
     // Required when sending a note back from review (spec section 6).
     send_back_comment: z.string().trim().max(2000).optional(),
@@ -182,8 +193,8 @@ export const setNodeStatusSchema = z
   );
 
 export const assignNodeSchema = z.object({
-  node_id: z.uuid(),
-  assigned_to: z.uuid().nullable(),
+  node_id: uuidLike(),
+  assigned_to: uuidLike().nullable(),
   due_date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Use the date picker.")
@@ -192,16 +203,16 @@ export const assignNodeSchema = z.object({
 });
 
 export const softDeleteNodeSchema = z.object({
-  node_id: z.uuid(),
+  node_id: uuidLike(),
 });
 
 export const restoreVersionSchema = z.object({
-  node_id: z.uuid(),
+  node_id: uuidLike(),
   version_no: z.number().int().min(1),
 });
 
 export const setNodeTagsSchema = z.object({
-  node_id: z.uuid(),
+  node_id: uuidLike(),
   tags: z
     .array(
       z
@@ -219,8 +230,8 @@ export const setNodeTagsSchema = z.object({
 });
 
 export const addCommentSchema = z.object({
-  node_id: z.uuid(),
-  parent_id: z.uuid().nullable(),
+  node_id: uuidLike(),
+  parent_id: uuidLike().nullable(),
   body: z.string().trim().min(1, "Write your comment.").max(4000),
 });
 
@@ -231,14 +242,14 @@ export const resolveCommentSchema = z.object({
 
 export const searchSchema = z.object({
   q: z.string().trim().max(200).optional().default(""),
-  course_id: z.uuid().optional().or(z.literal("")),
+  course_id: uuidLike().optional().or(z.literal("")),
   area: contentAreaSchema.optional().or(z.literal("")),
   status: nodeStatusSchema.optional().or(z.literal("")),
   tag: z.string().trim().max(40).optional().or(z.literal("")),
 });
 
 export const lockSchema = z.object({
-  node_id: z.uuid(),
+  node_id: uuidLike(),
 });
 
 export type SearchValues = z.infer<typeof searchSchema>;
@@ -262,8 +273,8 @@ export type AssetStorage = z.infer<typeof assetStorageSchema>;
 
 /** A Drive or web link replaces an oversized upload (spec section 6). */
 export const addLinkAssetSchema = z.object({
-  course_id: z.uuid(),
-  node_id: z.uuid().nullable(),
+  course_id: uuidLike(),
+  node_id: uuidLike().nullable(),
   kind: assetKindSchema,
   storage: z.enum(["drive", "link"]),
   url: z.url("Enter a valid link.").max(2048),
@@ -272,8 +283,8 @@ export const addLinkAssetSchema = z.object({
 
 /** After the browser uploads to Storage, the action records the row. */
 export const registerUploadSchema = z.object({
-  course_id: z.uuid(),
-  node_id: z.uuid().nullable(),
+  course_id: uuidLike(),
+  node_id: uuidLike().nullable(),
   kind: assetKindSchema,
   path_or_url: z.string().min(1).max(1024),
   title: z.string().trim().min(1, "Give it a title.").max(200),
@@ -324,7 +335,7 @@ export type JoinCodeInput = z.infer<typeof joinCodeInputSchema>;
 
 /** Creating a join code (leader/admin server action, spec section 10 rule 1). */
 export const joinCodeCreateSchema = z.object({
-  course_id: z.uuid().nullable(), // null = unlocks every non-archived course
+  course_id: uuidLike().nullable(), // null = unlocks every non-archived course
   label: z.string().trim().max(80).default(""),
   expires_in_days: z.number().int().min(1).max(365).nullable().default(null),
   max_uses: z.number().int().min(1).max(10_000).nullable().default(null),
@@ -375,6 +386,23 @@ export const settingsUpdateSchema = z.object({
   storage_limit_mb: z.coerce.number().int().min(100).max(10_000),
   // M9 canvas and later-milestone keys (spec section 10).
   max_canvas_cards: z.coerce.number().int().min(20).max(1000),
+  // Canvas and login rate limits are settings too (constitution rule 8);
+  // defaults are the chosen values (spec section 10 for canvas, docs/
+  // QUESTIONS.md 11 for login). Optional: older saves omit them and
+  // readSettings back-fills the default.
+  rate_login_per_15_min: z.coerce.number().int().min(1).max(100).optional(),
+  rate_canvas_create_per_hour: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(500)
+    .optional(),
+  rate_canvas_ops_per_minute: z.coerce
+    .number()
+    .int()
+    .min(20)
+    .max(2000)
+    .optional(),
   max_canvases_per_course: z.coerce.number().int().min(1).max(100),
   canvas_version_keep_auto: z.coerce.number().int().min(5).max(100),
   canvas_import_max_kb: z.coerce.number().int().min(64).max(4096),

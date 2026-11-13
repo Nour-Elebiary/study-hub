@@ -1,13 +1,28 @@
-import AxeBuilder from "@axe-core/playwright";
+import { expect, test } from "@playwright/test";
+
+// Shared helpers (constants, card locators, drag/connect, axe) live in
+// canvas-helpers.ts so the M10 spec can reuse them without registering
+// this file's tests twice.
 import {
-  expect,
-  test,
-  type Browser,
-  type Locator,
-  type Page,
-  type TestInfo,
-} from "@playwright/test";
-import { join } from "node:path";
+  CANVAS_LIST,
+  CARD_LIMIT,
+  FULL_MESSAGE,
+  LEADER_PASSWORD,
+  LEADER_STATE_PATH,
+  PUBLISHED_NOTE_ID,
+  addTextCard,
+  card,
+  connectCards,
+  createMap,
+  dragCard,
+  expectNoSeriousViolations,
+  expectSaved,
+  mapReady,
+  nodePosition,
+  openNotePicker,
+  openPublishToggle,
+  withStudent,
+} from "./canvas-helpers";
 
 /**
  * Canvas e2e (CANVAS-SPEC section 5.9, acceptance a–d; M9 scope).
@@ -31,153 +46,6 @@ import { join } from "node:path";
  * the default would race the other project's own cap test. Every CI run
  * resets the database, so settings fall back to the default 300.
  */
-
-const COURSE_A = "cccccccc-0000-cccc-0000-000000000001";
-const CANVAS_LIST = `/courses/${COURSE_A}/canvas`;
-const PUBLISHED_NOTE_ID = "eeeeeeee-0000-eeee-0000-000000000003";
-const STUDENT_STATE_PATH = join(
-  process.cwd(),
-  "playwright",
-  ".auth",
-  "student.json",
-);
-const LEADER_STATE_PATH = join(
-  process.cwd(),
-  "playwright",
-  ".auth",
-  "leader.json",
-);
-const LEADER_PASSWORD = "e2e-Leader-2026";
-const CARD_LIMIT = 20;
-const FULL_MESSAGE =
-  `This map is full (limit ${CARD_LIMIT} cards). ` +
-  "Remove cards or start a second map.";
-
-const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
-
-async function expectNoSeriousViolations(page: Page, path: string) {
-  await expect(page).toHaveTitle(/.+/);
-  const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
-  const serious = results.violations.filter(
-    (v) => v.impact === "serious" || v.impact === "critical",
-  );
-  expect(
-    serious.map((v) => `${v.id} (${v.impact}): ${v.nodes.length} nodes`),
-    `serious accessibility violations on ${path}`,
-  ).toEqual([]);
-}
-
-/** A card node on the map, matched by any text it shows. */
-const card = (page: Page, text: string): Locator =>
-  page.locator(".react-flow__node", { hasText: text });
-
-/** The card's map position, read from its React Flow translate transform. */
-async function nodePosition(
-  page: Page,
-  text: string,
-): Promise<[number, number]> {
-  const transform = await card(page, text).evaluate((el) => el.style.transform);
-  const match = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(transform);
-  expect(
-    match,
-    `card "${text}" should carry a translate transform`,
-  ).toBeTruthy();
-  return [Number(match![1]), Number(match![2])];
-}
-
-/**
- * Draws an edge: drag from the right-hand connection handle of the first
- * card and drop anywhere on the second (connection mode is loose). Waits
- * until React Flow shows one edge (the optimistic onConnect insert).
- */
-async function connectCards(page: Page, fromText: string, toText: string) {
-  const from = card(page, fromText).locator(
-    '.react-flow__handle[data-handleid="right"]',
-  );
-  // React Flow completes a connection only when the release lands on a
-  // handle (loose mode lets the same handle serve as the endpoint), so the
-  // drop goes to the target's left handle, not its body centre.
-  const to = card(page, toText).locator(
-    '.react-flow__handle[data-handleid="left"]',
-  );
-  const target = await to.boundingBox();
-  expect(
-    target,
-    `left handle of "${toText}" should have a bounding box`,
-  ).toBeTruthy();
-  await from.hover();
-  await page.mouse.down();
-  await page.mouse.move(
-    target!.x + target!.width / 2,
-    target!.y + target!.height / 2,
-    { steps: 8 },
-  );
-  await page.mouse.up();
-  await expect(page.locator(".react-flow__edge")).toHaveCount(1, {
-    timeout: 16_000,
-  });
-}
-
-/** Moves a card by (dx, dy): press its centre, drag, release. */
-async function dragCard(page: Page, text: string, dx: number, dy: number) {
-  const box = await card(page, text).boundingBox();
-  expect(box, `card "${text}" should have a bounding box`).toBeTruthy();
-  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(
-    box!.x + box!.width / 2 + dx,
-    box!.y + box!.height / 2 + dy,
-    { steps: 6 },
-  );
-  await page.mouse.up();
-}
-
-/** Waits out the 800 ms save debounce, then confirms the batch was saved. */
-async function expectSaved(page: Page) {
-  await page.waitForTimeout(900);
-  await expect(page.getByText(/^Saved$/)).toBeVisible({ timeout: 16_000 });
-}
-
-/**
- * Runs one step with a fresh student context (the joined SEED-2026 student)
- * at the current project's viewport, without importing another spec file —
- * importing it would register its tests twice.
- */
-async function withStudent(
-  browser: Browser,
-  testInfo: TestInfo,
-  run: (page: Page) => Promise<void>,
-): Promise<void> {
-  const context = await browser.newContext({
-    storageState: STUDENT_STATE_PATH,
-    // The same viewport the tests themselves run at (360 × 800 on the
-    // mobile project, the Desktop Chrome default on desktop) — typed by
-    // Playwright's project options, no cast needed.
-    viewport: testInfo.project.use.viewport ?? undefined,
-  });
-  const page = await context.newPage();
-  try {
-    await run(page);
-  } finally {
-    await context.close();
-  }
-}
-
-/** Creates a private map (leader side) and lands the editor on its URL. */
-async function createMap(page: Page, title: string): Promise<string> {
-  await page.goto(CANVAS_LIST);
-  await expect(page.getByLabel("New map")).toBeVisible({ timeout: 16_000 });
-  await page.getByLabel("New map").fill(title);
-  await page.getByRole("button", { name: /^New map$/ }).click();
-  await expect(page).toHaveURL(/\/canvas\/[0-9a-f-]+$/, {
-    timeout: 16_000,
-  });
-  // The editor loads behind a dynamic client loader; wait for its toolbar.
-  await expect(page.getByRole("button", { name: "Add text card" })).toBeVisible(
-    { timeout: 16_000 },
-  );
-  return new URL(page.url()).pathname;
-}
 
 test.describe.serial("canvas (M9 acceptance a–d)", () => {
   test.use({ storageState: LEADER_STATE_PATH });
@@ -206,8 +74,9 @@ test.describe.serial("canvas (M9 acceptance a–d)", () => {
     // the parallel desktop project cannot collide with this one).
     harnessPath = await createMap(page, `E2E map — ${project}`);
 
-    // Add a text card, then move it with a mouse drag.
-    await page.getByRole("button", { name: "Add text card" }).click();
+    // Add a text card, then move it with a mouse drag. The add control is
+    // the top toolbar at >= 768 px and the phone Add sheet below it.
+    await addTextCard(page);
     await expect(card(page, "Write here…")).toBeVisible({ timeout: 10_000 });
     await dragCard(page, "Write here…", 80, 40);
 
@@ -219,7 +88,7 @@ test.describe.serial("canvas (M9 acceptance a–d)", () => {
     // into its own clear corner first: the quiz note drags down, the draft
     // note drags up.
     for (const noteTitle of ["Quiz 1 prep", "Lecture 1 (draft)"]) {
-      await page.getByRole("button", { name: "Add note" }).click();
+      await openNotePicker(page);
       await expect(
         page.getByRole("heading", { name: "Choose a note" }),
       ).toBeVisible();
@@ -255,9 +124,10 @@ test.describe.serial("canvas (M9 acceptance a–d)", () => {
 
   test("(b) the leader publishes the map", async ({ page }) => {
     await page.goto(harnessPath);
-    await expect(
-      page.getByRole("button", { name: "Add text card" }),
-    ).toBeVisible({ timeout: 16_000 });
+    await mapReady(page);
+    // The publish switch sits in the top toolbar at >= 768 px and in the
+    // phone bar's More sheet below; this reveals it on phones.
+    await openPublishToggle(page);
     // The checkbox's accessible name is its wrapping label, which flips
     // between the two plain-language states.
     const publish = page.getByRole("checkbox", {
@@ -377,11 +247,13 @@ test.describe.serial("canvas (M9 acceptance a–d)", () => {
     }
     await expect(saved).toBeVisible();
 
-    // Fill a fresh map beyond the cap: 21 adds against 20.
+    // Fill a fresh map beyond the cap: 21 adds against 20. The keyboard N
+    // shortcut (spec 6.3) adds a card at any width; the toolbar add is
+    // width-split (top toolbar on desktop, Add sheet on phones) and this
+    // test only needs the count.
     await createMap(page, `Card cap — ${testInfo.project.name}`);
-    const add = page.getByRole("button", { name: "Add text card" });
     for (let i = 0; i < CARD_LIMIT + 1; i++) {
-      await add.click();
+      await page.keyboard.press("n");
     }
     // The RPC refuses the batch and the server action maps the error to
     // plain language; the editor shows it under the toolbar (role=alert).

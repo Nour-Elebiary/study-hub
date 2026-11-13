@@ -67,10 +67,28 @@ you create one like this:
    **Legend** (e.g. red = "exam material"). Cards with a published note show
    the note title; draft notes show a **Draft** tag and students will never
    see them on the map.
-5. Your work saves by itself a moment after each change ("Saved" in the
-   toolbar). Every save keeps a backup — open **Backups** to look at and
-   restore an older version. **Undo** brings back a card you just removed.
-6. When the map is ready, tick **Students can see**. Unticked maps stay
+5. The **side pane**: click a note or file card (or press Enter when a card is
+   selected) and it opens on the right, where you can edit the note without
+   leaving the map. If another leader is editing the same note, a message
+   tells you who and offers **Take over the edit**. On a phone the pane fills
+   the screen and closes with its Close button.
+6. Finding your way: press **Ctrl/Cmd + K** (or the **Search** button) to open
+   the command palette — it finds cards on the map and any course note, and
+   offers actions like "New text card", "Tidy up the map" and "Save a named
+   version". Press **?** to see the full keyboard shortcut list. With two or
+   more cards selected the **Arrange** menu lines them up, spreads them out
+   or tidies them; the phone **More** sheet has "Tidy up" for the whole map.
+7. Your work saves by itself a moment after each change ("Saved" in the
+   toolbar). If the internet drops, a yellow message keeps you working and
+   everything saves as soon as you are back. Every save keeps a backup — open
+   **Backups** to look at and restore an older version. **Undo** (and Redo)
+   brings back or re-applies any recent change.
+8. On a phone: **Connect** switches to link mode — tap one card, then the
+   card it links to, as many times as you like; **Stop linking** ends it.
+   Press and hold a card (or right-click) for the card menu; everything in
+   that menu is safe — "Remove from map" never deletes the note or file
+   itself, only the card.
+9. When the map is ready, tick **Students can see**. Unticked maps stay
    private to the team. In the map list the first map you make is the one
    students open by default; "Make default" changes that.
 

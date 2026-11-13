@@ -10,6 +10,7 @@ import {
   type NodeProps,
   type NodeTypes,
 } from "@xyflow/react";
+import { useEffect, useMemo, useRef, memo } from "react";
 import NoteCard from "./cards/NoteCard";
 import FileCard from "./cards/FileCard";
 import TextCard from "./cards/TextCard";
@@ -45,6 +46,15 @@ const ICONS: Record<CanvasCard["kind"], string> = {
   group: "🗂️",
 };
 
+/** Spoken kind names for the card's aria-label (spec 6.9). */
+const kindLabels: Record<CanvasCard["kind"], string> = {
+  note: "Note card",
+  file: "File card",
+  text: "Text card",
+  link: "Link card",
+  group: "Group",
+};
+
 /** Below this zoom cards degrade to icon + title (level of detail). */
 const LOD_ZOOM = 0.4;
 
@@ -68,9 +78,46 @@ function CanvasNodeInner(props: NodeProps<CanvasFlowNode>) {
   const { data, selected } = props;
   const card = data.card;
   const leader = data.leader;
-  const { removeCard } = useCanvasContext();
+  const { removeCard, toggleStudentVisible, openCardMenu } = useCanvasContext();
   const zoom = useStore((store) => store.transform[2]);
   const detailed = zoom >= LOD_ZOOM;
+  // Spec 6.9: every card's spoken name carries its kind, its title and
+  // how many edges it has, so screen readers can say what a card is
+  // without waiting for the whole canvas. The count rides the flow
+  // store; React only re-renders a node whose number actually changes.
+  const connections = useStore((store) =>
+    store.edges.reduce(
+      (count, edge) =>
+        count + (edge.source === card.id || edge.target === card.id ? 1 : 0),
+      0,
+    ),
+  );
+
+  // Long-press (spec 6.8) opens the card menu on touch; a move cancels
+  // it, so dragging never pops the menu. Right-click reuses the menu.
+  const pressRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (pressRef.current !== null) window.clearTimeout(pressRef.current);
+    },
+    [],
+  );
+  const startPress = () => {
+    if (!leader) return;
+    pressRef.current = window.setTimeout(() => openCardMenu(card.id), 500);
+  };
+  const cancelPress = () => {
+    if (pressRef.current !== null) {
+      window.clearTimeout(pressRef.current);
+      pressRef.current = null;
+    }
+  };
+
+  // The eye toggle lives on text, link and group cards only (spec 6.2);
+  // note and file visibility is managed in their own menus.
+  const hasEyeToggle =
+    leader &&
+    (card.kind === "text" || card.kind === "link" || card.kind === "group");
 
   const title = (function () {
     switch (card.kind) {
@@ -87,26 +134,33 @@ function CanvasNodeInner(props: NodeProps<CanvasFlowNode>) {
     }
   })();
 
-  const detail = detailed ? (
-    card.kind === "note" ? (
-      <NoteCard data={{ card, note: data.note, leader }} />
-    ) : card.kind === "file" ? (
-      <FileCard data={{ card, file: data.file, leader }} />
-    ) : card.kind === "text" ? (
-      <TextCard data={{ card }} />
-    ) : card.kind === "link" ? (
-      <LinkCard data={{ card }} />
-    ) : (
-      <GroupCard data={{ card }} />
-    )
-  ) : (
-    // Level of detail: icon + title only, no Markdown, no thumbnails.
-    <div className="flex h-full items-center gap-1.5 px-2">
-      <span aria-hidden="true">{ICONS[card.kind]}</span>
-      <span className="truncate text-xs font-semibold" dir="auto">
-        {title ?? ""}
-      </span>
-    </div>
+  // The card body only depends on this node's own version — memoised so a
+  // pan, zoom or unrelated edit re-renders no Markdown and no thumbnails
+  // (spec 6.10).
+  const detail = useMemo(
+    () =>
+      detailed ? (
+        card.kind === "note" ? (
+          <NoteCard data={{ card, note: data.note, leader }} />
+        ) : card.kind === "file" ? (
+          <FileCard data={{ card, file: data.file, leader }} />
+        ) : card.kind === "text" ? (
+          <TextCard data={{ card }} />
+        ) : card.kind === "link" ? (
+          <LinkCard data={{ card }} />
+        ) : (
+          <GroupCard data={{ card }} />
+        )
+      ) : (
+        // Level of detail: icon + title only, no Markdown, no thumbnails.
+        <div className="flex h-full items-center gap-1.5 px-2">
+          <span aria-hidden="true">{ICONS[card.kind]}</span>
+          <span className="truncate text-xs font-semibold" dir="auto">
+            {title ?? ""}
+          </span>
+        </div>
+      ),
+    [card, data.file, data.note, detailed, leader, title],
   );
 
   // The link layer (spec 5.6/5.7) lives here in the wrapper, never inside
@@ -145,12 +199,29 @@ function CanvasNodeInner(props: NodeProps<CanvasFlowNode>) {
 
   return (
     <div
+      id={`canvas-card-${card.id}`}
+      tabIndex={selected ? 0 : -1}
+      role="group"
+      aria-label={
+        `${kindLabels[card.kind]}${title ? `, ${title}` : ""}, ` +
+        `${connections === 1 ? "1 connection" : `${connections} connections`}`
+      }
       className={[
         "relative h-full w-full border",
         selected ? "border-ring ring-ring/50 ring-2" : "border-border",
         card.kind === "group" ? "rounded-xl" : "rounded-[10px]",
+        // Focus ring (spec 6.9): 2 px, offset 2 px, never removed.
+        "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
       ].join(" ")}
       style={styleFor(card)}
+      onTouchStart={startPress}
+      onTouchEnd={cancelPress}
+      onTouchMove={cancelPress}
+      onContextMenu={(event) => {
+        if (!leader) return;
+        event.preventDefault();
+        openCardMenu(card.id);
+      }}
     >
       {leader && selected ? (
         <NodeResizer minWidth={80} minHeight={40} isVisible />
@@ -165,6 +236,22 @@ function CanvasNodeInner(props: NodeProps<CanvasFlowNode>) {
           className="bg-background text-destructive absolute -top-2 -right-2 z-10 rounded-full border px-2 py-0.5 text-[11px] font-semibold shadow"
         >
           Remove from map
+        </button>
+      ) : null}
+
+      {leader && selected && hasEyeToggle ? (
+        <button
+          type="button"
+          onClick={() => toggleStudentVisible(card.id, !card.studentVisible)}
+          aria-label={
+            card.studentVisible ? "Hide from students" : "Show to students"
+          }
+          title={
+            card.studentVisible ? "Hide from students" : "Show to students"
+          }
+          className="bg-background absolute -top-2 -left-2 z-10 rounded-full border px-2 py-0.5 text-[11px] shadow"
+        >
+          <span aria-hidden="true">{card.studentVisible ? "👁" : "🙈"}</span>
         </button>
       ) : null}
 
@@ -198,7 +285,11 @@ export const snapToGrid = (value: number): number =>
 
 // Prepared for multi registration: one component per kind. Since the inner
 // component branches on the card kind itself, all five aliases share it.
-const CanvasNode = CanvasNodeInner;
+// React.memo (spec 6.10): a re-render of the editor or a pan must not
+// re-render all 300 cards — a card re-renders only when ITS props change
+// (position, size, selection, colour…). The zoom/connection counts live
+// in the flow store, so they still update independently.
+const CanvasNode = memo(CanvasNodeInner);
 
 export const canvasNodeTypes: NodeTypes = {
   note: CanvasNode,

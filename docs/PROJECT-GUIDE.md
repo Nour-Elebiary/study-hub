@@ -311,10 +311,16 @@ _Layout skeleton (verified by measurement at 360 / 768 / 1024 / 1280 px):_
   per-map open/delete/restore, Make default, and the publish badge. Everyone
   in the course may edit maps; publishing is what students read.
 - **`/courses/[courseId]/canvas/[canvasId]`** — the map editor: text / note /
-  file / group cards, drag + connect arrows, colours + picture legend,
-  publish switch ("Students can see"), a Saved chip, and automatic backups
-  written per save batch (`Backups` → restore an older version). Saves go
-  through ≤200-op op batches, not per-keystroke calls.
+  file / group cards, drag + connect arrows (phone: tap‑tap Connect mode),
+  colours + picture legend, publish switch ("Students can see"), a Saved chip
+  (Saving/Offline/Could not save + retry), and automatic backups written per
+  save batch (`Backups` → restore an older version). M10 adds the side pane
+  (docked ≥1280 px, drawer 768–1279 px, full-screen sheet on phones) sharing
+  the note soft lock, full keyboard support with the `?` shortcut sheet, the
+  Ctrl/Cmd+K command palette, undo/redo, copy/paste/duplicate, layers, groups,
+  the Arrange menu and long-press/right-click card menus. Saves go through
+  ≤200-op op batches (offline queue pauses and recovers), not per-keystroke
+  calls.
 
 ### Student app (`/s/*` — no login, cookie only)
 
@@ -485,15 +491,26 @@ extra service, and the function's `EXECUTE` is revoked from client roles
 (migration `00014`). Keys are **HMAC-SHA-256 hashes of the caller's IP +
 purpose prefix** — the app never stores a raw IP (privacy rule).
 
-| Purpose                         | Limit | Window                                                                       |
-| ------------------------------- | ----- | ---------------------------------------------------------------------------- |
-| `join` (join-code check)        | 5     | per minute                                                                   |
-| `suggest` (student suggestions) | 3     | per hour                                                                     |
-| `login`                         | 5     | per 15 minutes                                                               |
-| `ai_key` (adding keys)          | 5     | per hour                                                                     |
-| `ai_chat`                       | 20    | per minute (the _daily allowance_ in `settings` is the real control)         |
-| `canvas_ops`                    | 240   | per minute (one call per debounced save batch — normal editing is far below) |
-| `canvas_create`                 | 20    | per hour per IP (New map, Generate from course, restore version)             |
+| Purpose                         | Limit | Window                                                                                                   |
+| ------------------------------- | ----- | -------------------------------------------------------------------------------------------------------- |
+| `join` (join-code check)        | 5     | per minute                                                                                               |
+| `suggest` (student suggestions) | 3     | per hour                                                                                                 |
+| `login`                         | 5     | per 15 minutes (max is settings-adjustable)                                                              |
+| `ai_key` (adding keys)          | 5     | per hour                                                                                                 |
+| `ai_chat`                       | 20    | per minute (the _daily allowance_ in `settings` is the real control)                                     |
+| `canvas_ops`                    | 240   | per minute (one call per debounced save batch — normal editing is far below; max is settings-adjustable) |
+| `canvas_create`                 | 20    | per hour per IP (New map, Generate from course, restore version; max is settings-adjustable)             |
+
+The login and both canvas maxima are settings keys
+(`rate_login_per_15_min`, `rate_canvas_ops_per_minute`,
+`rate_canvas_create_per_hour` — section 13), because constitution rule 8 keeps
+limits out of code; every other purpose stays a spec constant. The local/CI
+seed raises all three (100 sign-ins/15 min, 200 maps/hour, 480
+batches/minute) — and `max_canvases_per_course` to 60 — because the whole
+e2e run shares one IP: every sign-in (setup projects, the admin flow, the
+side-pane lock test's password handling, retries) burns one login attempt,
+and every map test creates a map onto the same seeded course; without
+headroom the run trips its own budgets and retries would not fit.
 
 A broken limiter **fails closed** (`checkRateLimit` returns false on error) —
 an outage can't become an open door. Join codes themselves are stored
@@ -517,6 +534,9 @@ default, min and max; `/admin/settings` edits them; all readers go through
 | `storage_limit_mb`              | 1024        | Free-tier storage ceiling ditto                                   |
 | `max_canvas_cards`              | 300         | Most cards a single map may hold (never below 20)                 |
 | `max_canvases_per_course`       | 20          | Most maps a course may hold                                       |
+| `rate_login_per_15_min`         | 5           | Sign-in attempts per 15 minutes per internet address (section 12) |
+| `rate_canvas_create_per_hour`   | 20          | New maps per hour per internet address (section 12)               |
+| `rate_canvas_ops_per_minute`    | 240         | Map edit batches per minute per internet address (section 12)     |
 
 ## 14. Server-side surface: server actions and API routes
 
@@ -603,8 +623,12 @@ shuts down cleanly on Ctrl-C.
   disabling RLS or a test to make something work.
 - **Playwright e2e**: 31-page walkthrough coverage + the M9 canvas acceptance
   specs (`tests/e2e/canvas.spec.ts`, acceptance a–d, run twice — mobile 360 px
-  and desktop), mobile 360 px viewports, keyboard and axe accessibility
-  checks, offline PWA test (against a production build), join-code and
+  and desktop) + the M10 interaction flows (`tests/e2e/canvas-m10.spec.ts`,
+  shared helpers in `tests/e2e/canvas-helpers.ts`: keyboard-only flow, file
+  drop, side-pane lock across two contexts, palette, touch Connect, offline
+  recovery; QUESTIONS 53/54 cover the two spec gaps), mobile 360 px viewports,
+  keyboard and axe accessibility checks, offline PWA test (against a
+  production build), join-code and
   password-gate journeys; the leader's stable session comes from the
   `leader-setup` project (there is a matching `student-setup`).
 - **Pre-deploy scripts**: `scripts/load-test.mjs` (traffic soak),
@@ -627,10 +651,15 @@ shuts down cleanly on Ctrl-C.
 - `bbbbbbbb-…` — admin2, "Backup admin" (`admin2@studyhub.local`): in the hosted
   copy the password was changed to `Blue-Otter-42x` (the seed default
   `ChangeMe-Admin-02` no longer works), `tour_done = true`,
-  `must_change_password = false`.
-  ⚠️ The seed passwords `ChangeMe-Admin-01/02` are **no longer valid** on the
-  hosted project after the walkthrough changed admin2's password. There are no
-  other seeded auth users — leader accounts used in tests were created live.
+  `must_change_password = false`. In the **local/CI** seed admin2 also gets its
+  final password right away — `e2e-Leader2-2026`, `must_change_password = false`
+  — because the M10 lock test signs in as admin2 from both viewport projects in
+  parallel and a forced first-sign-in change would make them race on one account
+  (docs/QUESTIONS.md 58).
+  ⚠️ The seed password `ChangeMe-Admin-01` (Nour's temporary password) is **no
+  longer valid** on the hosted project after the walkthrough changed admin2's
+  password. There are no other seeded auth users — leader accounts used in
+  tests were created live.
 
 **Seed content**: two courses (`cccccccc-…01/02`, codes `COURSE-A` and
 `COURSE-B`), three nodes (`eeeeeeee-…01/02/03`) — the first is a published

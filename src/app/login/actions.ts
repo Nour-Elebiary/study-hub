@@ -48,7 +48,7 @@ export async function signInAction(
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_active, deleted_at")
+      .select("is_active, deleted_at, must_change_password")
       .eq("id", user.id)
       .single();
     if (!profile || !profile.is_active || profile.deleted_at) {
@@ -56,6 +56,12 @@ export async function signInAction(
       return {
         error: "This account has been disabled. Ask your administrator.",
       };
+    }
+    // A first sign-in with a temporary password goes straight to the
+    // password-choice screen (spec section 9) instead of bouncing the
+    // user home first and back again on the next page load.
+    if (profile.must_change_password) {
+      redirect("/reset-password");
     }
   }
 

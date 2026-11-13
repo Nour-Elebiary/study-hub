@@ -137,4 +137,26 @@ describe("settingsUpdateSchema", () => {
     });
     expect(parsed.success).toBe(true);
   });
+
+  it("accepts the canvas rate-limit settings (rule 8) and rejects junk", () => {
+    expect(
+      settingsUpdateSchema.safeParse({
+        ...base,
+        rate_canvas_create_per_hour: "200",
+        rate_canvas_ops_per_minute: "480",
+      }).success,
+    ).toBe(true);
+    expect(
+      settingsUpdateSchema.safeParse({
+        ...base,
+        rate_canvas_create_per_hour: 0, // would switch the limit off
+      }).success,
+    ).toBe(false);
+    expect(
+      settingsUpdateSchema.safeParse({
+        ...base,
+        rate_canvas_ops_per_minute: 3000, // above the settings range
+      }).success,
+    ).toBe(false);
+  });
 });

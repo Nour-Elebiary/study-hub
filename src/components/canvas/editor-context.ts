@@ -18,12 +18,24 @@ export type CanvasContextValue = {
   removeCard: (cardId: string) => void;
   /** The selection colour chooses this id (null clears). */
   recolourCard: (cardId: string, color: string | null) => void;
+  /**
+   * The eye toggle on text, link and group cards (spec 6.2): one
+   * `node.update` (student_visible) per press, undoable like any action.
+   */
+  toggleStudentVisible: (cardId: string, visible: boolean) => void;
+  /**
+   * Long-press / right-click opens the card context menu (spec 6.8);
+   * the viewer has no menu and supplies an empty implementation.
+   */
+  openCardMenu: (cardId: string) => void;
 };
 
 const noop: CanvasContextValue = {
   queueOps: () => {},
   removeCard: () => {},
   recolourCard: () => {},
+  toggleStudentVisible: () => {},
+  openCardMenu: () => {},
 };
 
 export const CanvasContext = createContext<CanvasContextValue>(noop);

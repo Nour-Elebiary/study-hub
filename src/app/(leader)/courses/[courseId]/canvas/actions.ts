@@ -8,7 +8,9 @@ import { requireSession } from "@/lib/dal";
 import {
   applyCanvasOps,
   createCanvas,
+  getCanvasRev,
   getCourseTree,
+  listCanvases,
   listCourseFiles,
   listCourseNotes,
   listVersions,
@@ -38,6 +40,7 @@ import {
   publishCanvasSchema,
 } from "@/lib/schemas";
 import type { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * Canvas server actions (CANVAS-SPEC section 5.5). Every action: zod
@@ -416,6 +419,59 @@ export async function listPickerFilesAction(courseId: string): Promise<
   return { ok: true, files: await listCourseFiles(courseId) };
 }
 
+/**
+ * The side pane's note loader (spec 6.6): the draft body, title and the
+ * same write rights the full editor page computes. The locks row stays
+ * managed by the embedded editor, so one note is never editable twice.
+ */
+export async function getNoteBodyAction(
+  canvasId: string,
+  nodeId: string,
+): Promise<
+  | {
+      ok: true;
+      body: string;
+      title: string;
+      canWrite: boolean;
+      canBreakLock: boolean;
+    }
+  | { error: string }
+> {
+  const session = await requireSession();
+  if (!UUID_PATTERN.test(nodeId) || !UUID_PATTERN.test(canvasId)) {
+    return failed("That link is not a real note.");
+  }
+  const courseId = await courseOf(canvasId);
+  if (!courseId) return failed("This map no longer exists.");
+  const membership = await getMembership(courseId, session.userId);
+  const isAdmin = session.profile.global_role === "admin";
+  if (!membership && !isAdmin) {
+    return failed("You are not a member of this course.");
+  }
+  const supabase = await createClient();
+  const { data: node } = await supabase
+    .from("nodes")
+    .select("id, course_id, area, title, draft_body_md, created_by")
+    .eq("id", nodeId)
+    .eq("course_id", courseId)
+    .maybeSingle();
+  if (!node) return failed("This note is not in this course any more.");
+  const canWrite =
+    isAdmin ||
+    membership?.role === "owner" ||
+    ((membership?.role === "editor" || membership?.role === "contributor") &&
+      membership.areas.includes(node.area)) ||
+    (membership?.role === "contributor" && node.created_by === session.userId);
+  const canBreakLock = isAdmin || membership?.role === "owner";
+  return {
+    ok: true,
+    body: node.draft_body_md ?? "",
+    title: node.title || "Untitled note",
+    canWrite,
+    canBreakLock,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Ops (the editor's saving queue entry point)
 // ---------------------------------------------------------------------------
@@ -457,6 +513,47 @@ export async function applyCanvasOpsAction(
     rev: result.data.rev,
     applied: result.data.applied,
     skipped: result.data.skipped,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Focus revision check (spec 6.4)
+// ---------------------------------------------------------------------------
+
+/**
+ * The cheap read the editor does when the window regains focus: if the
+ * server rev moved on while we were away, the whole map is refetched.
+ */
+export async function getCanvasRevAction(
+  canvasId: string,
+): Promise<number | null> {
+  await requireSession();
+  return getCanvasRev(canvasId);
+}
+
+/**
+ * The palette's "Maps" group (spec 6.7): the course's maps, RLS-scoped
+ * through the same DAL read the outline page uses. Validation for the
+ * callers is zod-free by design — the ids stay opaque strings, and every
+ * database read is re-checked by its own policies.
+ */
+export async function listCanvasesAction(
+  courseId: string,
+): Promise<
+  | { ok: true; canvases: { id: string; title: string; isDefault: boolean }[] }
+  | { error: string }
+> {
+  await requireSession();
+  if (!UUID_PATTERN.test(courseId))
+    return failed("That course link is not real.");
+  const rows = await listCanvases(courseId);
+  return {
+    ok: true,
+    canvases: rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      isDefault: row.isDefault,
+    })),
   };
 }
 

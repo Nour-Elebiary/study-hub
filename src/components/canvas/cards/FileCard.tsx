@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
+import {
+  acquireThumbnailSlot,
+  releaseThumbnailSlot,
+} from "@/lib/canvas/thumbnail-queue";
 import type { FileTarget } from "../payload";
 
 const KIND_ICONS: Record<string, string> = {
@@ -52,14 +56,24 @@ export default function FileCard({ data }: { data: FileCardData }) {
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
         loader.disconnect();
-        createBrowserSupabase()
-          .storage.from("assets")
-          .createSignedUrl(file.pathOrUrl, 600)
+        // Performance budget (spec 6.10): at most 6 signed-URL requests
+        // in flight across the whole map; a silent hold is fine because
+        // in-view cards with a request running need no slot.
+        void acquireThumbnailSlot()
+          .then(() =>
+            createBrowserSupabase()
+              .storage.from("assets")
+              .createSignedUrl(file.pathOrUrl, 600),
+          )
           .then(({ data: signed }) => {
             if (cancelled) return;
             if (signed?.signedUrl) setImageUrl(signed.signedUrl);
             else setFailed(true);
-          });
+          })
+          .catch(() => {
+            if (!cancelled) setFailed(true);
+          })
+          .finally(releaseThumbnailSlot);
       },
       { rootMargin: "200px" },
     );

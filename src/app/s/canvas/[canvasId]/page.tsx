@@ -94,6 +94,11 @@ export default async function StudentCanvasPage({
           published: detail.canvas.published,
           legend: detail.canvas.legend,
           viewport: detail.canvas.viewport,
+          // Students never upload from the map; the editor reads the same
+          // field from settings.
+          maxFileMb: 10,
+          // The student viewer has no side pane and no note editing.
+          currentUserId: null,
           cards: detail.cards,
           edges: detail.edges,
           notes: detail.notes,

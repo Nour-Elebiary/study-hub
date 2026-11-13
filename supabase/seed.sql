@@ -53,7 +53,7 @@ insert into auth.users (
   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
   'authenticated', 'authenticated',
   'admin2@studyhub.local',
-  crypt ('ChangeMe-Admin-02', gen_salt ('bf', 10)),
+  crypt ('e2e-Leader2-2026', gen_salt ('bf', 10)),
   now (),
   '{"provider":"email","providers":["email"]}',
   '{"display_name":"Backup admin","global_role":"admin"}',
@@ -72,7 +72,13 @@ insert into auth.identities (
   null, now (), now ()
 ) on conflict (provider_id, provider) do nothing;
 
-update public.profiles set global_role = 'admin', must_change_password = true
+-- admin2 signs in with its final password right away: the M10 lock test's
+-- second context uses it from both viewport projects in parallel, and a
+-- forced first-sign-in password change would make the two projects race on
+-- one account (each retry re-running the change on the other's heels).
+-- Nour keeps the temporary-password flow above for the leader-setup test,
+-- which is the one place the forced first-sign-in screen is exercised.
+update public.profiles set global_role = 'admin', must_change_password = false
 where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 
 -- two sample courses, owned by the admin with all six areas (spec section 4)
@@ -176,3 +182,22 @@ values (
   encode(hmac('SEED2026', 'replace-me', 'sha256'), 'hex'),
   'Sample join code for Course A (used by the e2e tests)'
 ) on conflict (code_hash) do nothing;
+
+-- Limits live in settings (constitution rule 8). Production keeps the spec
+-- defaults (20 new maps per hour, 240 edit batches per minute, 20 maps per
+-- course, 5 sign-ins per 15 minutes); this local database does not, because
+-- the whole e2e run shares one IP: every test that opens a map creates one
+-- (10 per project, plus every retry) and the two projects pile them onto
+-- the same seeded course, and every sign-in (setup projects, admin flow,
+-- the side-pane lock test's password handling, retries) burns one login
+-- attempt - all zero-headroom budgets would reject late tests ("Too many
+-- attempts", "Too many new maps", "already has the maximum of 20 maps").
+-- Raising the four keys here leaves headroom for retries without touching
+-- production.
+insert into public.settings (key, value)
+values
+  ('rate_login_per_15_min', '100'::jsonb),
+  ('rate_canvas_create_per_hour', '200'::jsonb),
+  ('rate_canvas_ops_per_minute', '480'::jsonb),
+  ('max_canvases_per_course', '60'::jsonb)
+on conflict (key) do update set value = excluded.value;
