@@ -22,7 +22,9 @@ import {
  * from the computer; edit a note in the side pane while a second browser
  * context sees the lock; palette search and action; touch viewport:
  * Connect mode between two cards (mobile project only); offline banner and
- * recovery. axe runs on every flow at this project's width (360 or 1280).
+ * recovery; `/map` redirect to the default canvas with the Outline tree
+ * still reachable (D10). axe runs on every flow at this project's width
+ * (360 or 1280).
  *
  * Spec gap (QUESTIONS 54): "drag a file from the drawer" has no drawer —
  * the picker covers the outcome, so the test drops a real file instead.
@@ -339,5 +341,45 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
         "You are offline. Your changes are kept on this page until you are back.",
       ),
     ).toHaveCount(0);
+  });
+
+  test("spec D10: /map redirects to the default canvas; Outline stays reachable", async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(90_000);
+    // One seeded course per project (mobile → Course A, desktop → Course B):
+    // the projects run in parallel against one database and a course holds
+    // at most one default map, so a shared course would let one project's
+    // "Make default" clear the other's before its redirect resolves.
+    const course =
+      testInfo.project.name === "mobile"
+        ? COURSE_A
+        : "cccccccc-0000-cccc-0000-000000000002";
+    const title = `M10 redirect -- ${testInfo.project.name}`;
+    const mapPath = await createMap(page, title, course);
+
+    // Make it the course default through the list UI, the same way a leader
+    // does, and confirm the chip.
+    await page.goto(`/courses/${course}/canvas`);
+    const row = page
+      .getByRole("listitem")
+      .filter({ has: page.getByRole("link", { name: title }) });
+    await row.getByRole("button", { name: "Make default" }).click();
+    await expect(row.getByText("Default for students")).toBeVisible({
+      timeout: 16_000,
+    });
+
+    // The bare /map URL now lands on that default map's editor (D10). On
+    // the mobile project the course also holds other, more recently updated
+    // maps from this file's other tests, so there this also proves the
+    // default beats the updated-at fallback.
+    await page.goto(`/courses/${course}/map`);
+    await expect(page).toHaveURL(mapPath);
+
+    // The permanent Outline link reaches the old tree view (QUESTIONS 40).
+    await page.getByRole("link", { name: "Outline", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: /Course outline/ }),
+    ).toBeVisible({ timeout: 16_000 });
   });
 });

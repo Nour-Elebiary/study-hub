@@ -97,6 +97,11 @@ as visible — on a phone the course outline comes first and the map opens
 behind an "Open map" button. Tap a card: notes open, downloadable files
 download, links open in a new tab.
 
+Tip: the **Open the course map** link on the course home now goes straight
+to your default map, or the last map you worked on if you never picked one.
+The old automatic tree view of the course is still there as the
+**Outline** — use the Outline link at the top of any map.
+
 Limits to know: a map holds at most the number of cards set in the admin
 Settings ("Most cards on one map") — if you ever see "This map is full…",
 start a second map or remove cards; each course holds at most 20 maps by

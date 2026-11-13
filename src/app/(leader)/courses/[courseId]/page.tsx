@@ -131,11 +131,18 @@ export default async function CoursePage({
           href={`/courses/${courseId}/map`}
           className="underline underline-offset-4"
         >
-          View the course map 🗺️
+          Open the course map 🗺️
         </Link>
         <span className="text-muted-foreground">
           {" "}
-          — the content tree drawn as a mind-map.
+          — opens your latest map; the old tree view is still there as the{" "}
+          <Link
+            href={`/courses/${courseId}/outline`}
+            className="underline underline-offset-4"
+          >
+            Outline
+          </Link>
+          .
         </span>
       </p>
     </div>

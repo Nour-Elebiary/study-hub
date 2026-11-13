@@ -221,8 +221,12 @@ export async function withStudent(
 }
 
 /** Creates a private map (leader side) and lands the editor on its URL. */
-export async function createMap(page: Page, title: string): Promise<string> {
-  await page.goto(CANVAS_LIST);
+export async function createMap(
+  page: Page,
+  title: string,
+  courseId: string = COURSE_A,
+): Promise<string> {
+  await page.goto(`/courses/${courseId}/canvas`);
   await expect(page.getByLabel("New map")).toBeVisible({ timeout: 16_000 });
   await page.getByLabel("New map").fill(title);
   await page.getByRole("button", { name: /^New map$/ }).click();

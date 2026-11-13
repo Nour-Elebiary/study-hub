@@ -282,9 +282,14 @@ _Layout skeleton (verified by measurement at 360 / 768 / 1024 / 1280 px):_
 - **`/courses/[courseId]`** — the course hub: note outline (sections and
   published notes — unpublished ones are hidden, and version-less sections are
   plain headings, never fake links — bug fix #2), tags, comments, members.
-- **`/courses/[courseId]/map`** — the mind map of the course built with React
-  Flow (`@xyflow/react`): a "core" centre node, the course home, 📁 section
-  nodes and 📝 note nodes; pan/zoom/minimap.
+- **`/courses/[courseId]/map`** — redirects to the default map's editor
+  (CANVAS-SPEC D10); with no default it opens the most recently updated map,
+  and with no maps at all it opens the maps list below.
+- **`/courses/[courseId]/outline`** — the course outline, the accessible tree
+  view (QUESTIONS 40): the content tree drawn with React Flow (`@xyflow/react`)
+  — a "core" centre node, the course home, 📁 section nodes and 📝 note nodes;
+  pan/zoom/minimap, tag highlighting, PNG/SVG export; on phones the same data
+  shows as a text outline.
 - **`/courses/[courseId]/access`** — join codes, their QR code (rendered with
   `qrcode`), validity, and the member list with per-member roles.
 - **`/courses/[courseId]/nodes/[nodeId]`** — read view of a published version;

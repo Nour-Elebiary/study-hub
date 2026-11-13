@@ -61,12 +61,22 @@ export default async function CanvasEditorPage({
   return (
     <div className="grid gap-2">
       <div>
-        <Link
-          href={`/courses/${detail.canvas.courseId}/canvas`}
-          className="text-muted-foreground text-sm underline underline-offset-4"
-        >
-          ← All maps
-        </Link>
+        <p className="text-sm">
+          <Link
+            href={`/courses/${detail.canvas.courseId}/canvas`}
+            className="text-muted-foreground underline underline-offset-4"
+          >
+            ← All maps
+          </Link>
+          <span className="text-muted-foreground"> · </span>
+          <Link
+            href={`/courses/${detail.canvas.courseId}/outline`}
+            className="text-muted-foreground underline underline-offset-4"
+          >
+            Outline
+          </Link>
+          <span className="text-muted-foreground"> — the course as a tree</span>
+        </p>
         <h1 className="mt-1 truncate text-xl font-bold" dir="auto">
           {detail.canvas.title}
         </h1>
