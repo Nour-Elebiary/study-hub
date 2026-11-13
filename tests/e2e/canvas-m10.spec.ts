@@ -272,7 +272,15 @@ test.describe.serial("canvas (M10 acceptance flows)", () => {
     await expect(
       page.getByText("Linking: now tap the card it links to", { exact: true }),
     ).toBeVisible();
-    await node.nth(1).tap();
+    // The first tap selects card 1, and React Flow lifts the selected card
+    // above the rest — so card 1 now covers card 2's centre as well. Card
+    // 2's bottom-right corner is the one area card 1 never covers: tap
+    // there (measured from the card's own box, not a magic coordinate).
+    const card2 = await node.nth(1).boundingBox();
+    expect(card2, "second card should have a bounding box").toBeTruthy();
+    await node.nth(1).tap({
+      position: { x: card2!.width - 12, y: card2!.height - 12 },
+    });
     await expect(page.locator(".react-flow__edge")).toHaveCount(1, {
       timeout: 16_000,
     });
