@@ -10,6 +10,9 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Leaders" };
 
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function AdminLeadersPage() {
   await requireAdmin();
   const supabase = await createClient();

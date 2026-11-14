@@ -17,6 +17,9 @@ const AREA_LABELS: Record<string, string> = Object.fromEntries(
  * by area. Only published notes are listed; drafts and other courses are
  * unreachable by construction.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function StudentCoursePage({
   params,
 }: PageProps<"/s/courses/[courseId]">) {

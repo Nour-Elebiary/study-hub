@@ -11,6 +11,9 @@ import { createClient } from "@/lib/supabase/server";
  * `/courses/[courseId]/outline` as the accessible alternative
  * (docs/QUESTIONS.md 40).
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function MapRedirectPage({
   params,
 }: PageProps<"/courses/[courseId]/map">) {

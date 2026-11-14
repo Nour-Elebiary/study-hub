@@ -11,6 +11,9 @@ export const metadata: Metadata = { title: "Settings" };
  * measures against. Every value lives in the settings table — never in code
  * (constitution rule 8).
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function SettingsPage() {
   await requireAdmin();
   const values = await readSettings();

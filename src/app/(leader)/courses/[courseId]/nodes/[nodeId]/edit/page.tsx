@@ -13,6 +13,9 @@ export const metadata: Metadata = { title: "Edit note" };
  * The editor screen. Locks and autosave live in the client component; this
  * page only checks permission and hands over the current draft.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function EditNotePage({
   params,
 }: PageProps<"/courses/[courseId]/nodes/[nodeId]/edit">) {

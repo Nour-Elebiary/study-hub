@@ -26,6 +26,9 @@ function formatWhen(iso: string): string {
  * only; admins read it here. Course-owner filtering arrives with content in
  * M2 (there is nothing course-scoped to show yet).
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function AdminAuditPage() {
   await requireAdmin();
   const supabase = await createClient();

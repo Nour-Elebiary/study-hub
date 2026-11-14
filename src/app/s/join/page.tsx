@@ -13,6 +13,9 @@ export const metadata: Metadata = { title: "Join — Study Hub" };
  * A share link or QR code (spec section 9) prefills the code with ?code=;
  * the student still presses the button, so nothing joins automatically.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function JoinPage({ searchParams }: PageProps<"/s/join">) {
   if (await getStudentScope()) {
     redirect("/s");

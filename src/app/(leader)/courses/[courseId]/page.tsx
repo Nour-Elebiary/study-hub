@@ -27,6 +27,9 @@ export type TreeNode = {
   updatedAt: string;
 };
 
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function CoursePage({
   params,
 }: PageProps<"/courses/[courseId]">) {

@@ -15,6 +15,9 @@ export const metadata: Metadata = { title: "Canvas map" };
  * resolved note/file targets, then hands a plain payload to the
  * client-only editor.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function CanvasEditorPage({
   params,
 }: PageProps<"/courses/[courseId]/canvas/[canvasId]">) {

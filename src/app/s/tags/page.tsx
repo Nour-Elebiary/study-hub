@@ -10,6 +10,9 @@ export const metadata: Metadata = { title: "Tags — Study Hub" };
  * used by published notes in the student's courses, with how many notes
  * carry it.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function StudentTagsPage() {
   const scope = await requireStudentScope();
   const courseIds = await getStudentCourseIds(scope);

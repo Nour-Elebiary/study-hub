@@ -15,6 +15,9 @@ export const metadata: Metadata = { title: "Course map — Study Hub" };
  * unpublished or other-course map calls notFound() — the screen never
  * reveals whether a map id exists.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function StudentCanvasPage({
   params,
 }: PageProps<"/s/canvas/[canvasId]">) {

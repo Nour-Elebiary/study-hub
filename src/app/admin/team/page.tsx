@@ -12,6 +12,9 @@ export const metadata: Metadata = { title: "Team" };
  * Admins see every course; a course owner sees only the courses they own
  * (spec section 9: "Team matrix — Admin, course owner (own course)").
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function AdminTeamPage() {
   const session = await requireAdminOrCourseOwner();
   const supabase = await createClient();

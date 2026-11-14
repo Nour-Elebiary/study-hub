@@ -20,6 +20,9 @@ type OutlineNode = {
  * phones)"): the same tree the leader sees as a mind-map, drawn as nested
  * lists that work at 360 px without JavaScript.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function StudentMapPage({
   params,
 }: PageProps<"/s/map/[courseId]">) {

@@ -100,6 +100,9 @@ function UsageBar({
  * owner, files over the size gate, and free-tier use with a warning at 70%.
  * Admins see every course; owners see only their own.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function HealthPage() {
   const session = await requireAdminOrCourseOwner();
   const isAdmin = session.profile.global_role === "admin";

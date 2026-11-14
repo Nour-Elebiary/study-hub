@@ -9,6 +9,9 @@ import {
 import { requireSession } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
 
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function CoursesPage() {
   await requireSession();
   const supabase = await createClient();

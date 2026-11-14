@@ -17,6 +17,9 @@ export const metadata: Metadata = { title: "Course team" };
  * One course's team: the grid row of the team matrix, mobile-first.
  * Admins open any course; a course owner only their own (404 otherwise).
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function CourseTeamPage({
   params,
 }: PageProps<"/admin/team/[courseId]">) {

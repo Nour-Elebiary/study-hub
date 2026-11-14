@@ -23,6 +23,9 @@ const STATUS_LABELS: Record<string, string> = {
   published: "Published",
 };
 
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function NotePage({
   params,
 }: PageProps<"/courses/[courseId]/nodes/[nodeId]">) {

@@ -41,6 +41,9 @@ type SearchResult = {
  * and Arabic (the `simple` text-search configuration does not stem, so both
  * languages match as typed). Filters: course, area, status, tag.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function SearchPage({
   searchParams,
 }: PageProps<"/search">) {

@@ -10,6 +10,9 @@ export const metadata: Metadata = { title: "Backups" };
  * also calls the same export endpoint with the backup token; this screen is
  * for the monthly "save a copy to Google Drive" routine (section 11 rule 3).
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function BackupsPage() {
   await requireAdmin();
 

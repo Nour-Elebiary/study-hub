@@ -19,6 +19,9 @@ export const metadata: Metadata = { title: "Course outline" };
  * and this page stays reachable as the accessible alternative
  * (docs/QUESTIONS.md 40).
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function OutlinePage({
   params,
 }: PageProps<"/courses/[courseId]/outline">) {

@@ -20,6 +20,9 @@ const NIL_UUID = "00000000-0000-0000-0000-000000000000";
  * Leader home (spec section 6): three lists — assigned to me, waiting for
  * my review, changed since I last opened the course.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function LeaderHomePage() {
   const session = await requireSession();
   const supabase = await createClient();

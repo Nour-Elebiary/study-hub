@@ -16,6 +16,9 @@ export const metadata: Metadata = { title: "Version history" };
  * compared with the one before it, and restoring writes the old text as a
  * NEW version — the history is never rewritten.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function VersionsPage({
   params,
   searchParams,

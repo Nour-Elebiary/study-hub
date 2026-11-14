@@ -33,6 +33,9 @@ const KIND_ICONS: Record<string, string> = {
  * version, its visible files, its tags, and the "suggest a correction"
  * button. Students from other courses or unpublished notes get a 404.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function StudentNotePage({
   params,
 }: PageProps<"/s/notes/[nodeId]">) {

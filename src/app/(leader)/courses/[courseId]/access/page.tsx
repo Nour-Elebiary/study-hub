@@ -17,6 +17,9 @@ export const metadata: Metadata = { title: "Student access" };
  * only as hashes in the database, so this screen shows use counts, never
  * the codes themselves.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function AccessPage({
   params,
 }: PageProps<"/courses/[courseId]/access">) {

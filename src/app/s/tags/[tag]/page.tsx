@@ -9,6 +9,9 @@ export const metadata: Metadata = { title: "Tag — Study Hub" };
  * One tag across the student's courses (spec section 10 rule 2): published
  * notes carrying it, e.g. everything tagged #quiz1.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function StudentTagPage({
   params,
 }: PageProps<"/s/tags/[tag]">) {

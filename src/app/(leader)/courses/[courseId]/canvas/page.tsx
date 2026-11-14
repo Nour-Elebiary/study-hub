@@ -20,6 +20,9 @@ const KIND_LABEL: Record<string, string> = {
  * every map with its state, a New map form, the "generate from course"
  * button, and the restore link for recently deleted maps.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function CanvasListPage({
   params,
 }: PageProps<"/courses/[courseId]/canvas">) {

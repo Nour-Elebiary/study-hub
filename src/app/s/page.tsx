@@ -11,6 +11,9 @@ export const metadata: Metadata = { title: "My courses — Study Hub" };
  * here is published content inside the student's join-code scope, read by
  * the server with the scope applied explicitly.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function StudentHomePage() {
   const scope = await requireStudentScope();
   const courses = await getStudentCourses(scope);

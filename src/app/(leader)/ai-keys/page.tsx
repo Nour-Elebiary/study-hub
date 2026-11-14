@@ -20,6 +20,9 @@ export const metadata = { title: "Your AI key — Study Hub" };
  * project, used only for their own requests. Keys are listed masked (last 4
  * characters only); the ciphertext is never sent to any client.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function AiKeysPage() {
   const session = await requireSession();
   const keys = await listOwnKeys(session.userId);

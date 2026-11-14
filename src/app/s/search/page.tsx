@@ -23,6 +23,9 @@ type SearchHit = {
  * of published notes inside the student's courses only. The course filter is
  * the join-code scope, not a client choice.
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function StudentSearchPage({
   searchParams,
 }: PageProps<"/s/search">) {

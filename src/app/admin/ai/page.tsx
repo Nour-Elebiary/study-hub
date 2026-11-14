@@ -20,6 +20,9 @@ export const metadata = { title: "AI usage — Study Hub admin" };
  * the editable ai_limits rows, and the fair-use allowance. Opening this
  * page also runs the retention cleanup (docs/QUESTIONS.md #20).
  */
+// Reads session-bound data on every request — blocking route, not prerendered.
+export const instant = false;
+
 export default async function AdminAiPage() {
   await requireAdmin();
   const deleted = await applyAiRetention();
